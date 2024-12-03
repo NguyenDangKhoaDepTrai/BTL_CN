@@ -201,7 +201,7 @@ func Create(path string) (torrentPath string, err error) {
 	if err != nil {
 		return "", err
 	}
-	torrentFileName := fmt.Sprintf("%s.torrent", path)
+	torrentFileName := fmt.Sprintf("%s.torrent", path) // Tên file torrent = tên file source + .torrent
 	err = torrentFile.createTorrentFile(torrentFileName)
 	if err != nil {
 		return "", err

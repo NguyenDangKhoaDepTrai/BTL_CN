@@ -13,6 +13,28 @@ import (
 	"tcp-app/torrent"
 )
 
+// StartServer initializes the server to handle peer requests.
+func StartServer(address string) error {
+	listener, err := net.Listen("tcp", address) // Tạo socket server để lắng nghe trên cổng port
+	if err != nil {
+		return fmt.Errorf("error starting TCP server: %v", err)
+	}
+	defer listener.Close()
+
+	fmt.Printf("Server listening on %s...\n", address)
+
+	for {
+		conn, err := listener.Accept() // Chấp nhận kết nối từ client
+		if err != nil {
+			fmt.Printf("Error accepting connection: %v\n", err)
+			continue
+		}
+
+		// Handle each connection in a new goroutine
+		go handleConnection(conn)
+	}
+}
+
 type TorrentFile struct {
 	Announce    string
 	InfoHash    [20]byte
@@ -53,28 +75,6 @@ func NewFileWorker(filePath string) (*FileWorker, error) {
 		numPieces:   len(pieces),
 		pieceHashes: pieceHashes,
 	}, nil
-}
-
-// StartServer initializes the server to handle peer requests.
-func StartServer(address string) error {
-	listener, err := net.Listen("tcp", address)
-	if err != nil {
-		return fmt.Errorf("error starting TCP server: %v", err)
-	}
-	defer listener.Close()
-
-	fmt.Printf("Server listening on %s...\n", address)
-
-	for {
-		conn, err := listener.Accept()
-		if err != nil {
-			fmt.Printf("Error accepting connection: %v\n", err)
-			continue
-		}
-
-		// Handle each connection in a new goroutine
-		go handleConnection(conn)
-	}
 }
 
 // Global map to store workers associated with info hashes
