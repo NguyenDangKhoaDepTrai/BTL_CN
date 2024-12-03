@@ -8,8 +8,6 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"net/http"
-	"net/url"
 	"sync"
 	"time"
 
@@ -26,51 +24,6 @@ type PieceResult struct {
 	Index int
 	Data  []byte
 	Error error
-}
-
-// PeerInfo represents the information about a connected peer
-type PeerInfo struct {
-	IP       string
-	Port     string
-	InfoHash string
-	PeerID   string
-}
-
-// AnnounceToTracker notifies the tracker about a new peer connection
-func AnnounceToTracker(trackerURL string, peer PeerInfo) error {
-	// Construct the announce URL with query parameters
-	baseURL, err := url.Parse(trackerURL)
-	if err != nil {
-		return fmt.Errorf("invalid tracker URL: %v", err)
-	}
-
-	params := url.Values{
-		"info_hash":  {peer.InfoHash},
-		"peer_id":    {peer.PeerID},
-		"ip":         {peer.IP},
-		"port":       {peer.Port},
-		"uploaded":   {"0"},
-		"downloaded": {"0"},
-		"left":       {"0"},
-		"event":      {"started"},
-	}
-
-	baseURL.RawQuery = params.Encode()
-	announceURL := baseURL.String()
-
-	// Send GET request to tracker
-	resp, err := http.Get(announceURL)
-	if err != nil {
-		return fmt.Errorf("failed to announce to tracker: %v", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("tracker returned non-OK status: %d", resp.StatusCode)
-	}
-
-	fmt.Printf("Successfully announced peer to tracker: %s:%s\n", peer.IP, peer.Port)
-	return nil
 }
 
 func StartDownload(torrentFile string) {

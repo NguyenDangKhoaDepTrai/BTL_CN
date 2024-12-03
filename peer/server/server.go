@@ -15,6 +15,51 @@ import (
 	"time"
 )
 
+func connectToTracker(trackerURL string) error {
+	conn, err := net.Dial("tcp", trackerURL)
+
+	if err != nil {
+		return fmt.Errorf("connection failed: %v", err)
+	}
+	defer conn.Close()
+
+	// Read torrent info to get the info hash
+	torrentInfo, err := os.ReadFile("torrent_info.json")
+	if err != nil {
+		return fmt.Errorf("error reading torrent_info.json: %v", err)
+	}
+
+	var torrentInfoMap map[string]string
+	if err := json.Unmarshal(torrentInfo, &torrentInfoMap); err != nil {
+		return fmt.Errorf("error unmarshalling torrent_info.json: %v", err)
+	}
+
+	// Create peer info message
+	peerInfo := map[string]string{
+		"type":       "announce",
+		"info_hash":  torrentInfoMap["InfoHash"],
+		"peer_id":    "YOUR_PEER_ID", // You should generate a unique peer ID
+		"port":       "6881",         // The port your peer is listening on
+		"uploaded":   "0",
+		"downloaded": "0",
+		"left":       "0",
+		"event":      "started",
+	}
+
+	// Convert to JSON and send to tracker
+	message, err := json.Marshal(peerInfo)
+	if err != nil {
+		return fmt.Errorf("error marshalling peer info: %v", err)
+	}
+
+	// Send the message followed by a newline
+	message = append(message, '\n')
+	if _, err := conn.Write(message); err != nil {
+		return fmt.Errorf("error sending to tracker: %v", err)
+	}
+	return nil
+}
+
 // StartServer initializes the server to handle peer requests.
 func StartServer(address string) error {
 	listener, err := net.Listen("tcp", address) // Tạo socket server để lắng nghe trên cổng port
@@ -24,14 +69,13 @@ func StartServer(address string) error {
 	defer listener.Close()
 
 	fmt.Printf("Server listening on %s...\n", address)
-
+	connectToTracker("192.168.101.92:8080")
 	for {
 		conn, err := listener.Accept() // Chấp nhận kết nối từ client
 		if err != nil {
 			fmt.Printf("Error accepting connection: %v\n", err)
 			continue
 		}
-
 		// Handle each connection in a new goroutine
 		go handleConnection(conn)
 	}

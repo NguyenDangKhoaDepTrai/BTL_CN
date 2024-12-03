@@ -14,15 +14,9 @@ import (
 
 func main() {
 	go func() {
-		peerInfo := client.PeerInfo{
-			IP:       "192.168.101.99",
-			Port:     "8080",
-			InfoHash: "",
-			PeerID:   "",
-		}
+
 		trackerAddress := ":8080"
 		err := server.StartServer(trackerAddress)
-		client.AnnounceToTracker(trackerAddress, peerInfo)
 		if err != nil {
 			log.Fatalf("Failed to start server: %v\n", err)
 		}

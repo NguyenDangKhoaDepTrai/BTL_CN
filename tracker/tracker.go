@@ -87,21 +87,25 @@ func (pm *PeerManager) GetConnectedPeers() []string {
 func handleConnection(conn net.Conn) {
 	defer conn.Close()
 	peerManager.AddPeer(conn)
-	defer peerManager.RemovePeer(conn)
 
-	// Giữ kết nối mở
+	// Create a buffer to store incoming data
 	buffer := make([]byte, 1024)
-	for {
-		_, err := conn.Read(buffer)
-		if err != nil {
-			return
-		}
+
+	// Read data from the connection
+	n, err := conn.Read(buffer)
+	if err != nil {
+		fmt.Printf("Lỗi khi đọc dữ liệu từ peer: %v\n", err)
+		return
 	}
+
+	// Convert the data to a string and print it
+	data := string(buffer[:n])
+	fmt.Printf("Dữ liệu nhận được từ peer: %s\n", data)
 }
 
 func main() {
 	// Khởi tạo server
-	listener, err := net.Listen("tcp", ":6881")
+	listener, err := net.Listen("tcp", ":8080")
 	if err != nil {
 		fmt.Printf("Không thể khởi tạo tracker: %v\n", err)
 		return
