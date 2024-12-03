@@ -197,7 +197,9 @@ func (t *TorrentFile) createTorrentFile(path string) error {
 
 func Create(path string) (torrentPath string, err error) {
 	trackerURL := "http://localhost:8080/announce"
+
 	torrentFile, err := CreateTorrent(path, trackerURL)
+
 	if err != nil {
 		return "", err
 	}

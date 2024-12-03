@@ -10,20 +10,19 @@ import (
 	"tcp-app/client"
 	"tcp-app/server"
 	"tcp-app/torrent"
-	"tcp-app/tracker"
 )
 
 func main() {
 	go func() {
+		peerInfo := client.PeerInfo{
+			IP:       "192.168.101.99",
+			Port:     "8080",
+			InfoHash: "",
+			PeerID:   "",
+		}
 		trackerAddress := ":8080"
 		err := server.StartServer(trackerAddress)
-		if err != nil {
-			log.Fatalf("Failed to start server: %v\n", err)
-		}
-	}()
-	go func() {
-		trackerAddress := "192.168.101.99:8080"
-		err := tracker.NewConnection(trackerAddress)
+		client.AnnounceToTracker(trackerAddress, peerInfo)
 		if err != nil {
 			log.Fatalf("Failed to start server: %v\n", err)
 		}
@@ -40,8 +39,8 @@ func main() {
 		case strings.HasPrefix(commandLine, "menu"):
 			fmt.Println("Torrent Simulation App")
 			fmt.Println("Commands:")
-			fmt.Println("  download [torrent-file]  - Start downloading a torrent file")
-			fmt.Println("  test [ip:port]           - Test connection to a peer")
+			fmt.Println("  download [torrent-file]  - Start downloading a file from a torrent file")
+			fmt.Println("  test [ip:port]           - Test connection to another peer")
 			fmt.Println("  create [file]            - Create a torrent file from a source file")
 			fmt.Println("  open [torrent-file]      - Open and display torrent file contents")
 			fmt.Println("  test-file [filename]     - Test split and merge functionality")
