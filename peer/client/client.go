@@ -227,7 +227,7 @@ func performHandshake(address string, infoHash []byte) error {
 	return nil
 }
 
-func ConnectToTracker(trackerAddress string, peerAddress string) error {
+func ConnectToTracker(trackerAddress string, peerAddress string, filename string) error {
 	conn, err := net.Dial("tcp", trackerAddress)
 	if err != nil {
 		return fmt.Errorf("connection failed: %v", err)
@@ -249,10 +249,7 @@ func ConnectToTracker(trackerAddress string, peerAddress string) error {
 
 	// Tạo message để gửi
 	// Format: START:{peerAddress}:{fileName}
-	message := fmt.Sprintf("START:%s:%s\n",
-		peerAddress,
-		torrentInfo.FileName,
-	)
+	message := fmt.Sprintf("START:%s:%s\n", peerAddress, filename)
 
 	// Gửi message đến tracker
 	if _, err := conn.Write([]byte(message)); err != nil {

@@ -11,9 +11,9 @@ import (
 
 // PeerConnection represents a connected peer
 type PeerConnection struct {
-	IP          string
-	Port        string
-	ConnectedAt time.Time
+	IP       string
+	Port     string
+	Filename string
 }
 
 // PeerManager manages connected peers
@@ -28,19 +28,16 @@ var peerManager = &PeerManager{
 }
 
 // AddPeer adds a new peer to the manager and notifies about the connection
-func (pm *PeerManager) AddPeer(conn net.Conn) error {
-	addr := conn.RemoteAddr().(*net.TCPAddr)
-	peerAddr := fmt.Sprintf("%s", addr.IP.String())
-
+func (pm *PeerManager) AddPeer(conn net.Conn, peerAddr string, fileName string) error {
 	pm.mu.Lock()
 	defer pm.mu.Unlock()
 
 	// Check if peer with same IP already exists
 	for existingAddr, existingPeer := range pm.peers {
-		if existingPeer.IP == addr.IP.String() {
+		if existingPeer.IP == peerAddr {
 			fmt.Printf("\n[%s] Peer %s is already connected (as %s)\n",
 				time.Now().Format("2006-01-02 15:04:05"),
-				addr.IP.String(),
+				peerAddr,
 				existingAddr)
 			return nil
 		}
@@ -48,13 +45,13 @@ func (pm *PeerManager) AddPeer(conn net.Conn) error {
 
 	// Add peer to the manager
 	pm.peers[peerAddr] = &PeerConnection{
-		IP:          addr.IP.String(),
-		Port:        ":8080",
-		ConnectedAt: time.Now(),
+		Filename: fileName,
+		IP:       peerAddr,
+		Port:     ":8080",
 	}
 
 	// Notify about new connection
-	fmt.Printf("\n[%s] New peer connected from %s\n", time.Now().Format("2006-01-02 15:04:05"), addr.IP.String())
+	fmt.Printf("\n[%s] New peer connected from %s\n", time.Now().Format("2006-01-02 15:04:05"), peerAddr)
 	fmt.Printf("Total connected peers: %d\n", len(pm.peers))
 	return nil
 }
@@ -67,11 +64,10 @@ func (pm *PeerManager) RemovePeer(conn net.Conn) error {
 	pm.mu.Lock()
 	defer pm.mu.Unlock()
 
-	if peer, exists := pm.peers[peerAddr]; exists {
-		duration := time.Since(peer.ConnectedAt).Round(time.Second)
+	if _, exists := pm.peers[peerAddr]; exists {
 		delete(pm.peers, peerAddr)
 
-		fmt.Printf("\n[%s] Peer disconnected from %s (connected for %s)\n", time.Now().Format("2006-01-02 15:04:05"), peerAddr, duration)
+		fmt.Printf("\n[%s] Peer disconnected from %s\n", time.Now().Format("2006-01-02 15:04:05"), peerAddr)
 		fmt.Printf("Total connected peers: %d\n", len(pm.peers))
 	}
 	return nil
@@ -84,11 +80,10 @@ func (pm *PeerManager) GetConnectedPeers() []string {
 
 	peers := make([]string, 0, len(pm.peers))
 	for _, peer := range pm.peers {
-		duration := time.Since(peer.ConnectedAt).Round(time.Second)
-		peerInfo := fmt.Sprintf("%s:%s (connected for %s)",
+		peerInfo := fmt.Sprintf("%s:%s",
 			peer.IP,
 			peer.Port,
-			duration)
+		)
 		peers = append(peers, peerInfo)
 	}
 	return peers
@@ -109,10 +104,14 @@ func handleConnection(conn net.Conn) {
 	data := string(buffer[:n])
 	fmt.Printf("Received data from peer: %s\n", data)
 
+	args := strings.Split(data, ":")
+	peerAddr := args[1]
+	fileName := args[2]
+
 	// Handle different commands
 	switch {
 	case strings.HasPrefix(data, "START:"):
-		err = peerManager.AddPeer(conn)
+		err = peerManager.AddPeer(conn, peerAddr, fileName)
 		if err != nil {
 			fmt.Printf("Error adding peer: %v\n", err)
 			return

@@ -43,6 +43,7 @@ import (
 func main() {
 	trackerAddress := "192.168.101.99:8080"
 	peerAddress := "192.168.101.11"
+	//peerAddress := "192.168.101.98"
 	go func() {
 		serverAddress := fmt.Sprintf("%s:8080", peerAddress)
 		err := server.StartServer(serverAddress, trackerAddress)
@@ -62,7 +63,7 @@ func main() {
 		case strings.HasPrefix(commandLine, "menu"):
 			fmt.Println("Torrent Simulation App")
 			fmt.Println("Commands:")
-			fmt.Println("  connecttotracker       		- Connect to tracker")
+			fmt.Println("  connecttotracker [filename]       	- Connect to tracker and announce file")
 			fmt.Println("  download [torrent-file]  		- Start downloading a file from a torrent file")
 			fmt.Println("  test [ip:port]           		- Test connection to another peer")
 			fmt.Println("  create [file]           		- Create a torrent file from a source file")
@@ -83,11 +84,12 @@ func main() {
 		//-----------------------------------------------------------------------------------------------------
 		case strings.HasPrefix(commandLine, "connecttotracker"):
 			args := strings.Split(commandLine, " ")
-			if len(args) != 1 {
-				fmt.Println("Usage: connecttotracker")
+			if len(args) != 2 {
+				fmt.Println("Usage: connecttotracker [filename]")
 				continue
 			}
-			client.ConnectToTracker(trackerAddress, peerAddress)
+			filename := args[1]
+			client.ConnectToTracker(trackerAddress, peerAddress, filename)
 		//-----------------------------------------------------------------------------------------------------
 		case strings.HasPrefix(commandLine, "create"):
 			args := strings.Split(commandLine, " ")
