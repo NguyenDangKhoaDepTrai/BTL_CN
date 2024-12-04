@@ -47,7 +47,7 @@ func StartDownload(torrentFile string) {
 	}
 
 	// Mock the list of peers
-	peers := []string{"192.168.101.98:8080"}
+	peers := []string{"192.168.101.92:8080"}
 
 	// First, test connection and handshake with peers
 	var activePeers []string
