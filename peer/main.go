@@ -41,8 +41,8 @@ import (
 // }
 
 func main() {
-	trackerAddress := "192.168.101.99:8080"
-	peerAddress := "192.168.101.11"
+	trackerAddress := "192.168.101.11:8080"
+	peerAddress := "192.168.101.99"
 	//peerAddress := "192.168.101.98"
 	go func() {
 		serverAddress := fmt.Sprintf("%s:8080", peerAddress)
