@@ -82,6 +82,7 @@ func (pm *PeerManager) GetConnectedPeers() []string {
 // HandleConnection xử lý kết nối từ peer
 func handleConnection(conn net.Conn) {
 	defer conn.Close()
+	defer peerManager.RemovePeer(conn) // Make sure we remove the peer when connection ends
 	peerManager.AddPeer(conn)
 
 	// Create a buffer to store incoming data
@@ -90,16 +91,26 @@ func handleConnection(conn net.Conn) {
 	// Read data from the connection
 	n, err := conn.Read(buffer)
 	if err != nil {
-		fmt.Printf("Lỗi khi đọc dữ liệu từ peer: %v\n", err)
+		fmt.Printf("Error reading data from peer: %v\n", err)
 		return
 	}
 
 	// Convert the data to a string and print it
 	data := string(buffer[:n])
-	fmt.Printf("Dữ liệu nhận được từ peer: %s\n", data)
+	fmt.Printf("Received data from peer: %s\n", data)
+
+	// Prepare response with connected peers information
+	peers := peerManager.GetConnectedPeers()
+	response := fmt.Sprintf("Connected peers (%d):\n%s",
+		len(peers),
+		strings.Join(peers, "\n"))
 
 	// Send response to peer
-	conn.Write([]byte("OK"))
+	_, err = conn.Write([]byte(response))
+	if err != nil {
+		fmt.Printf("Error sending response to peer: %v\n", err)
+		return
+	}
 }
 
 func getLocalIP() string {
