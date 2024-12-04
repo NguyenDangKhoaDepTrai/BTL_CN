@@ -27,12 +27,20 @@ func removeFromSlice(slice []string, item string) []string {
 }
 
 func RemovePeer(peerAddr string) error {
-	fmt.Printf("Removing peer: '%s'\n", peerAddr)
 	for fileName, peers := range peerInfo {
 		peerInfo[fileName] = removeFromSlice(peers, peerAddr)
 		if len(peerInfo[fileName]) == 0 {
 			delete(peerInfo, fileName)
 		}
+	}
+	return nil
+}
+
+func RemovePeerFromFileName(fileName string, peerAddr string) error {
+	fmt.Printf("Removing peer: '%s' from file: '%s'\n", peerAddr, fileName)
+	peerInfo[fileName] = removeFromSlice(peerInfo[fileName], peerAddr)
+	if len(peerInfo[fileName]) == 0 {
+		delete(peerInfo, fileName)
 	}
 	return nil
 }
@@ -70,6 +78,18 @@ func handleConnection(conn net.Conn) {
 			fmt.Printf("Error removing peer: %v\n", err)
 			return
 		}
+	case strings.HasPrefix(data, "STOPONE:"):
+		fileName := args[2]
+		err = RemovePeerFromFileName(fileName, peerAddr)
+		if err != nil {
+			fmt.Printf("Error removing peer: %v\n", err)
+			return
+		}
+	case strings.HasPrefix(data, "LIST:"):
+		fileName := args[1]
+		peers := peerInfo[fileName]
+		response := fmt.Sprintf("LIST:%s:%v", fileName, peers)
+		conn.Write([]byte(response))
 	}
 
 	// Print peerInfo in a clearer way
@@ -82,7 +102,7 @@ func handleConnection(conn net.Conn) {
 		}
 	}
 
-	// Send response to peer
+	//Send response to peer
 	response, err := json.Marshal(peerInfo)
 	if err != nil {
 		fmt.Printf("Error marshaling response: %v\n", err)
