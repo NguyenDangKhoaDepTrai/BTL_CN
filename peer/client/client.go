@@ -5,9 +5,13 @@ import (
 	"bytes"
 	"crypto/sha1"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net"
+	"os"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -214,5 +218,50 @@ func performHandshake(address string, infoHash []byte) error {
 		return fmt.Errorf("invalid handshake response: %s", response)
 	}
 
+	return nil
+}
+
+func ConnectToTracker(trackerAddress string, peerAddress string) error {
+	conn, err := net.Dial("tcp", trackerAddress)
+
+	if err != nil {
+		return fmt.Errorf("connection failed: %v", err)
+	}
+	defer conn.Close()
+
+	// Read torrent info to get the info hash
+	torrentInfo, err := os.ReadFile("torrent_info.json")
+	if err != nil {
+		return fmt.Errorf("error reading torrent_info.json: %v", err)
+	}
+
+	var torrentInfoMap map[string]string
+	if err := json.Unmarshal(torrentInfo, &torrentInfoMap); err != nil {
+		return fmt.Errorf("error unmarshalling torrent_info.json: %v", err)
+	}
+	port, _ := strconv.Atoi(peerAddress[strings.LastIndex(peerAddress, ":")+1:])
+	peerID := peerAddress[:strings.LastIndex(peerAddress, ":")]
+
+	// Create peer info message
+	peerInfo := map[string]string{
+		"event":      "started",
+		"info_hash":  torrentInfoMap["InfoHash"],
+		"peer_id":    peerID,
+		"port":       strconv.Itoa(port),
+		"uploaded":   "0",
+		"downloaded": "0",
+	}
+
+	// Convert to JSON and send to tracker
+	message, err := json.Marshal(peerInfo)
+	if err != nil {
+		return fmt.Errorf("error marshalling peer info: %v", err)
+	}
+
+	// Send the message followed by a newline
+	message = append(message, '\n')
+	if _, err := conn.Write(message); err != nil {
+		return fmt.Errorf("error sending to tracker: %v", err)
+	}
 	return nil
 }

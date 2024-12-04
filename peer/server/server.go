@@ -15,61 +15,50 @@ import (
 	"time"
 )
 
-func connectToTracker(trackerURL string) error {
-	conn, err := net.Dial("tcp", trackerURL)
-
+// Add this helper function
+func getLocalIP() string {
+	interfaces, err := net.Interfaces()
 	if err != nil {
-		return fmt.Errorf("connection failed: %v", err)
-	}
-	defer conn.Close()
-
-	// Read torrent info to get the info hash
-	torrentInfo, err := os.ReadFile("torrent_info.json")
-	if err != nil {
-		return fmt.Errorf("error reading torrent_info.json: %v", err)
+		return "unknown"
 	}
 
-	var torrentInfoMap map[string]string
-	if err := json.Unmarshal(torrentInfo, &torrentInfoMap); err != nil {
-		return fmt.Errorf("error unmarshalling torrent_info.json: %v", err)
-	}
+	for _, iface := range interfaces {
+		// Check if it's a wireless interface (common naming patterns)
+		if strings.Contains(strings.ToLower(iface.Name), "wi-fi") ||
+			strings.Contains(strings.ToLower(iface.Name), "wlan") {
 
-	// Create peer info message
-	peerInfo := map[string]string{
-		"type":       "announce",
-		"info_hash":  torrentInfoMap["InfoHash"],
-		"peer_id":    "YOUR_PEER_ID", // You should generate a unique peer ID
-		"port":       "6881",         // The port your peer is listening on
-		"uploaded":   "0",
-		"downloaded": "0",
-		"left":       "0",
-		"event":      "started",
-	}
+			addrs, err := iface.Addrs()
+			if err != nil {
+				continue
+			}
 
-	// Convert to JSON and send to tracker
-	message, err := json.Marshal(peerInfo)
-	if err != nil {
-		return fmt.Errorf("error marshalling peer info: %v", err)
+			for _, addr := range addrs {
+				if ipnet, ok := addr.(*net.IPNet); ok {
+					if ip4 := ipnet.IP.To4(); ip4 != nil {
+						return ip4.String()
+					}
+				}
+			}
+		}
 	}
-
-	// Send the message followed by a newline
-	message = append(message, '\n')
-	if _, err := conn.Write(message); err != nil {
-		return fmt.Errorf("error sending to tracker: %v", err)
-	}
-	return nil
+	return "unknown"
 }
 
 // StartServer initializes the server to handle peer requests.
-func StartServer(address string) error {
-	listener, err := net.Listen("tcp", address) // Tạo socket server để lắng nghe trên cổng port
+func StartServer(address string, trackerAddress string) error {
+	listener, err := net.Listen("tcp", address)
 	if err != nil {
 		return fmt.Errorf("error starting TCP server: %v", err)
 	}
 	defer listener.Close()
 
+	// Get actual IP and port
+	localIP := getLocalIP()
+	_, port, _ := net.SplitHostPort(listener.Addr().String())
+	actualAddress := fmt.Sprintf("%s:%s", localIP, port)
+
 	fmt.Printf("Server listening on %s...\n", address)
-	connectToTracker("192.168.101.92:8080")
+	fmt.Printf("Local address: %s\n", actualAddress)
 	for {
 		conn, err := listener.Accept() // Chấp nhận kết nối từ client
 		if err != nil {

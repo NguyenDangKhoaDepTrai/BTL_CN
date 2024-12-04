@@ -117,7 +117,7 @@ func splitFileIntoPieces(file *os.File, pieceLength int) ([][]byte, error) {
 }
 
 // CreateTorrent builds a TorrentFile from a file path and tracker URL
-func CreateTorrent(path string, trackerURL string) (TorrentFile, error) {
+func CreateTorrent(path string, trackerAddress string) (TorrentFile, error) {
 	file, err := os.Open(path)
 	if err != nil {
 		return TorrentFile{}, err
@@ -131,9 +131,9 @@ func CreateTorrent(path string, trackerURL string) (TorrentFile, error) {
 
 	// Create bencode structs
 	bto := bencodeTorrent{
-		Announce: trackerURL,
+		Announce: trackerAddress,
 		Info: bencodeInfo{
-			PieceLength: 262144, // Standard piece length of 256KB
+			PieceLength: 524288, // Standard piece length of 512KB
 			Name:        fileInfo.Name(),
 			Length:      int(fileInfo.Size()),
 		},
@@ -152,20 +152,7 @@ func CreateTorrent(path string, trackerURL string) (TorrentFile, error) {
 		piecesHashes = append(piecesHashes, hash[:]...)
 	}
 	bto.Info.Pieces = string(piecesHashes)
-
 	return bto.toTorrentFile()
-}
-
-// StreamFilePieces streams file pieces to a client without hashing
-func StreamFilePieces(filePath string, pieceLength int) ([][]byte, error) {
-	file, err := os.Open(filePath)
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-
-	// Use the same function to split the file into pieces
-	return splitFileIntoPieces(file, pieceLength)
 }
 
 // Create saves a TorrentFile as a .torrent file
@@ -195,20 +182,18 @@ func (t *TorrentFile) createTorrentFile(path string) error {
 	return bencode.Marshal(file, bto)
 }
 
-func Create(path string) (torrentPath string, err error) {
-	trackerURL := "http://localhost:8080/announce"
-
-	torrentFile, err := CreateTorrent(path, trackerURL)
+func Create(path string, trackerAddress string) (torrentPath string, err error) {
+	torrentFile, err := CreateTorrent(path, trackerAddress)
 
 	if err != nil {
 		return "", err
 	}
+	// ---------------------------------------- Tạo file json ----------------------------------------
 	torrentFileName := fmt.Sprintf("%s.torrent", path) // Tên file torrent = tên file source + .torrent
 	err = torrentFile.createTorrentFile(torrentFileName)
 	if err != nil {
 		return "", err
 	}
-
 	torrentInfo := map[string]string{
 		"FilePath": path,
 		"FileName": torrentFile.Name,
@@ -294,6 +279,18 @@ func (t *TorrentFile) MergePieces(outputPath string, pieces map[int]string) erro
 	}
 
 	return nil
+}
+
+// StreamFilePieces streams file pieces to a client without hashing
+func StreamFilePieces(filePath string, pieceLength int) ([][]byte, error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	// Use the same function to split the file into pieces
+	return splitFileIntoPieces(file, pieceLength)
 }
 
 // TestSplitAndMerge tests the split and merge functionality

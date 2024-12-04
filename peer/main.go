@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"strings"
 
@@ -12,11 +13,40 @@ import (
 	"tcp-app/torrent"
 )
 
-func main() {
-	go func() {
+func getLocalIP() string {
+	interfaces, err := net.Interfaces()
+	if err != nil {
+		return "unknown"
+	}
 
-		trackerAddress := ":8080"
-		err := server.StartServer(trackerAddress)
+	for _, iface := range interfaces {
+		// Check if it's a wireless interface (common naming patterns)
+		if strings.Contains(strings.ToLower(iface.Name), "wi-fi") ||
+			strings.Contains(strings.ToLower(iface.Name), "wlan") {
+
+			addrs, err := iface.Addrs()
+			if err != nil {
+				continue
+			}
+
+			for _, addr := range addrs {
+				if ipnet, ok := addr.(*net.IPNet); ok {
+					if ip4 := ipnet.IP.To4(); ip4 != nil {
+						return ip4.String()
+					}
+				}
+			}
+		}
+	}
+	return "unknown"
+}
+
+func main() {
+	trackerAddress := "192.168.101.92:8080"
+	peerAddress := getLocalIP()
+	go func() {
+		serverAddress := fmt.Sprintf("%s:8080", peerAddress)
+		err := server.StartServer(serverAddress, trackerAddress)
 		if err != nil {
 			log.Fatalf("Failed to start server: %v\n", err)
 		}
@@ -33,13 +63,14 @@ func main() {
 		case strings.HasPrefix(commandLine, "menu"):
 			fmt.Println("Torrent Simulation App")
 			fmt.Println("Commands:")
-			fmt.Println("  download [torrent-file]  - Start downloading a file from a torrent file")
-			fmt.Println("  test [ip:port]           - Test connection to another peer")
-			fmt.Println("  create [file]            - Create a torrent file from a source file")
-			fmt.Println("  open [torrent-file]      - Open and display torrent file contents")
-			fmt.Println("  test-file [filename]     - Test split and merge functionality")
-			fmt.Println("  clear                    - Clear the terminal")
-			fmt.Println("  exit                     - Exit the program")
+			fmt.Println("  connecttotracker       		- Connect to tracker")
+			fmt.Println("  download [torrent-file]  	- Start downloading a file from a torrent file")
+			fmt.Println("  test [ip:port]           	- Test connection to another peer")
+			fmt.Println("  create [file]           		- Create a torrent file from a source file")
+			fmt.Println("  open [torrent-file]      	- Open and display torrent file contents")
+			fmt.Println("  test-file [filename]     	- Test split and merge functionality")
+			fmt.Println("  clear                   		- Clear the terminal")
+			fmt.Println("  exit                    		- Exit the program")
 			continue
 			//-----------------------------------------------------------------------------------------------------
 			// case strings.HasPrefix(commandLine, "seed"):
@@ -50,7 +81,20 @@ func main() {
 			// 	}
 			// 	torrentFile := args[1]
 			// 	server.StartServer(torrentFile)
-			//-----------------------------------------------------------------------------------------------------
+		//-----------------------------------------------------------------------------------------------------
+		case strings.HasPrefix(commandLine, "connecttotracker"):
+			args := strings.Split(commandLine, " ")
+			if len(args) < 2 {
+				fmt.Println("Usage: connecttotracker")
+				continue
+			}
+			err := client.ConnectToTracker(trackerAddress, peerAddress)
+			if err != nil {
+				fmt.Printf("Failed to connect to tracker: %v\n", err)
+			} else {
+				fmt.Printf("Successfully connected to tracker at %s\n", trackerAddress)
+			}
+		//-----------------------------------------------------------------------------------------------------
 		case strings.HasPrefix(commandLine, "create"):
 			args := strings.Split(commandLine, " ")
 			if len(args) < 2 {
@@ -58,13 +102,13 @@ func main() {
 				continue
 			}
 			sourceFile := args[1]
-			torrentFileName, err := torrent.Create(sourceFile)
+			torrentFileName, err := torrent.Create(sourceFile, trackerAddress)
 			if err != nil {
 				fmt.Printf("Failed to create torrent file: %v\n", err)
 			} else {
 				fmt.Printf("Torrent file created successfully: %s\n", torrentFileName)
 			}
-			//-----------------------------------------------------------------------------------------------------
+		//-----------------------------------------------------------------------------------------------------
 		case strings.HasPrefix(commandLine, "download"):
 			args := strings.Split(commandLine, " ")
 			if len(args) < 2 {

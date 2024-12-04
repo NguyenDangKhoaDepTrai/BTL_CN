@@ -43,9 +43,7 @@ func (pm *PeerManager) AddPeer(conn net.Conn) {
 	}
 
 	// Notify about new connection
-	fmt.Printf("\n[%s] New peer connected from %s\n",
-		time.Now().Format("2006-01-02 15:04:05"),
-		peerAddr)
+	fmt.Printf("\n[%s] New peer connected from %s\n", time.Now().Format("2006-01-02 15:04:05"), peerAddr)
 
 	// Print current number of connected peers
 	fmt.Printf("Total connected peers: %d\n", len(pm.peers))
@@ -63,10 +61,7 @@ func (pm *PeerManager) RemovePeer(conn net.Conn) {
 		duration := time.Since(peer.ConnectedAt).Round(time.Second)
 		delete(pm.peers, peerAddr)
 
-		fmt.Printf("\n[%s] Peer disconnected from %s (connected for %s)\n",
-			time.Now().Format("2006-01-02 15:04:05"),
-			peerAddr,
-			duration)
+		fmt.Printf("\n[%s] Peer disconnected from %s (connected for %s)\n", time.Now().Format("2006-01-02 15:04:05"), peerAddr, duration)
 		fmt.Printf("Total connected peers: %d\n", len(pm.peers))
 	}
 }
@@ -112,9 +107,7 @@ func main() {
 	}
 	defer listener.Close()
 
-	fmt.Printf("[%s] Tracker đang chạy tại địa chỉ: %s\n",
-		time.Now().Format("2006-01-02 15:04:05"),
-		listener.Addr().String())
+	fmt.Printf("[%s] Tracker đang chạy tại địa chỉ: %s\n", time.Now().Format("2006-01-02 15:04:05"), listener.Addr().String())
 
 	// Chấp nhận kết nối
 	for {
