@@ -42,7 +42,7 @@ import (
 
 func main() {
 	trackerAddress := "192.168.101.11:8080"
-	peerAddress := "192.168.101.99"
+	peerAddress := "192.168.101.92"
 	//peerAddress := "192.168.101.98"
 	go func() {
 		serverAddress := fmt.Sprintf("%s:8080", peerAddress)
@@ -64,6 +64,8 @@ func main() {
 			fmt.Println("Torrent Simulation App")
 			fmt.Println("Commands:")
 			fmt.Println("  connecttotracker [filename]       	- Connect to tracker and announce file")
+			fmt.Println("  disconnecttotracker [filename]    	- Disconnect from tracker")
+			fmt.Println("  getlist [filename] 	- Get list of peers for a specific file")
 			fmt.Println("  download [torrent-file]  		- Start downloading a file from a torrent file")
 			fmt.Println("  test [ip:port]           		- Test connection to another peer")
 			fmt.Println("  create [file]           		- Create a torrent file from a source file")
@@ -90,6 +92,24 @@ func main() {
 			}
 			filename := args[1]
 			client.ConnectToTracker(trackerAddress, peerAddress, filename)
+		//-----------------------------------------------------------------------------------------------------
+		case strings.HasPrefix(commandLine, "disconnecttotracker"):
+			args := strings.Split(commandLine, " ")
+			if len(args) != 2 {
+				fmt.Println("Usage: disconnecttotracker [filename]")
+				continue
+			}
+			filename := args[1]
+			client.DisconnectToTrackerForAFile(trackerAddress, peerAddress, filename)
+		//-----------------------------------------------------------------------------------------------------
+		case strings.HasPrefix(commandLine, "getlist"):
+			args := strings.Split(commandLine, " ")
+			if len(args) != 2 {
+				fmt.Println("Usage: getlist [filename]")
+				continue
+			}
+			filename := args[1]
+			client.GetListOfPeersForAFile(trackerAddress, peerAddress, filename)
 		//-----------------------------------------------------------------------------------------------------
 		case strings.HasPrefix(commandLine, "create"):
 			args := strings.Split(commandLine, " ")
