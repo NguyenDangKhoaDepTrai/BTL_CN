@@ -19,6 +19,7 @@ func AddPeer(peerAddr string, fileName string) error {
 func removeFromSlice(slice []string, item string) []string {
 	for i, v := range slice {
 		if v == item {
+			fmt.Printf("Removing peer: '%s'\n", item)
 			return append(slice[:i], slice[i+1:]...)
 		}
 	}
@@ -26,18 +27,14 @@ func removeFromSlice(slice []string, item string) []string {
 }
 
 func RemovePeer(peerAddr string) error {
+	fmt.Printf("Removing peer: '%s'\n", peerAddr)
 	for fileName, peers := range peerInfo {
 		peerInfo[fileName] = removeFromSlice(peers, peerAddr)
+		if len(peerInfo[fileName]) == 0 {
+			delete(peerInfo, fileName)
+		}
 	}
 	return nil
-}
-
-func GetConnectedPeers() []string {
-	var peers []string
-	for _, peers := range peerInfo {
-		peers = append(peers, peers...)
-	}
-	return peers
 }
 
 // HandleConnection xử lý kết nối từ peer
@@ -57,11 +54,11 @@ func handleConnection(conn net.Conn) {
 
 	args := strings.Split(data, ":")
 	peerAddr := args[1]
-	fileName := args[2]
 
 	// Handle different commands
 	switch {
 	case strings.HasPrefix(data, "START:"):
+		fileName := args[2]
 		err = AddPeer(peerAddr, fileName)
 		if err != nil {
 			fmt.Printf("Error adding peer: %v\n", err)
@@ -75,8 +72,15 @@ func handleConnection(conn net.Conn) {
 		}
 	}
 
-	// print peerInfo
-	fmt.Println(peerInfo)
+	// Print peerInfo in a clearer way
+	if len(peerInfo) == 0 {
+		fmt.Println("No peers connected")
+	} else {
+		fmt.Println("Current Peer Information:")
+		for fileName, peers := range peerInfo {
+			fmt.Printf("File: %s, Peers: %v\n", fileName, peers)
+		}
+	}
 
 	// Send response to peer
 	response, err := json.Marshal(peerInfo)
@@ -85,7 +89,7 @@ func handleConnection(conn net.Conn) {
 		return
 	}
 	_, err = conn.Write(append(response, '!')) // Adding '!' as message delimiter
-	fmt.Printf("Sent response to peer: %s\n----------------------------------------------- \n", string(response))
+	fmt.Printf("Sent response to peer: %s\n-------------------------------------------------------------------\n", string(response))
 	if err != nil {
 		fmt.Printf("Error sending response to peer: %v\n", err)
 		return

@@ -249,7 +249,7 @@ func ConnectToTracker(trackerAddress string, peerAddress string, filename string
 
 	// Tạo message để gửi
 	// Format: START:{peerAddress}:{fileName}
-	message := fmt.Sprintf("START:%s:%s\n", peerAddress, filename)
+	message := fmt.Sprintf("START:%s:%s", peerAddress, filename)
 
 	// Gửi message đến tracker
 	if _, err := conn.Write([]byte(message)); err != nil {
@@ -276,9 +276,7 @@ func DisconnectToTracker(trackerAddress string, peerAddress string) error {
 
 	// Tạo message để gửi
 	// Format: STOP:{peerAddress}
-	message := fmt.Sprintf("STOP:%s\n",
-		peerAddress,
-	)
+	message := fmt.Sprintf("STOP:%s", peerAddress)
 
 	// Gửi message đến tracker
 	if _, err := conn.Write([]byte(message)); err != nil {
