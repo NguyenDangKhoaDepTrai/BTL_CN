@@ -261,11 +261,15 @@ func ConnectToTracker(trackerAddress string, peerAddress string) error {
 
 	// Đọc phản hồi từ tracker
 	reader := bufio.NewReader(conn)
-	response, err := reader.ReadString('\n')
+	response, err := reader.ReadString('!')
 	if err != nil {
 		return fmt.Errorf("failed to read tracker response: %v", err)
 	}
 
 	fmt.Printf("Tracker response: %s", response)
+	return nil
+}
+
+func DisconnectToTracker(trackerAddress string, peerAddress string) error {
 	return nil
 }

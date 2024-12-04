@@ -92,7 +92,7 @@ func main() {
 			if err != nil {
 				fmt.Printf("Failed to connect to tracker: %v\n", err)
 			} else {
-				fmt.Printf("Successfully connected to tracker at %s\n", trackerAddress)
+				fmt.Printf("\nSuccessfully connected to tracker at %s\n", trackerAddress)
 			}
 		//-----------------------------------------------------------------------------------------------------
 		case strings.HasPrefix(commandLine, "create"):
@@ -154,6 +154,7 @@ func main() {
 		//-----------------------------------------------------------------------------------------------------
 		case commandLine == "exit":
 			fmt.Println("Exiting...")
+			client.DisconnectToTracker(trackerAddress, peerAddress)
 			return
 		//-----------------------------------------------------------------------------------------------------
 		case commandLine == "clear":

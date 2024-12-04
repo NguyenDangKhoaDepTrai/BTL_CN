@@ -36,6 +36,12 @@ func (pm *PeerManager) AddPeer(conn net.Conn) {
 	pm.mu.Lock()
 	defer pm.mu.Unlock()
 
+	// Check if peer already exists
+	if _, exists := pm.peers[peerAddr]; exists {
+		fmt.Printf("\n[%s] Peer %s is already connected\n", time.Now().Format("2006-01-02 15:04:05"), peerAddr)
+		return
+	}
+
 	// Add peer to the manager
 	pm.peers[peerAddr] = &PeerConnection{
 		IP:          addr.IP.String(),
@@ -45,8 +51,6 @@ func (pm *PeerManager) AddPeer(conn net.Conn) {
 
 	// Notify about new connection
 	fmt.Printf("\n[%s] New peer connected from %s\n", time.Now().Format("2006-01-02 15:04:05"), peerAddr)
-
-	// Print current number of connected peers
 	fmt.Printf("Total connected peers: %d\n", len(pm.peers))
 }
 
@@ -67,27 +71,28 @@ func (pm *PeerManager) RemovePeer(conn net.Conn) {
 	}
 }
 
-// GetConnectedPeers returns a list of currently connected peers
+// GetConnectedPeers returns a list of peer details including IP, Port, and connection duration
 func (pm *PeerManager) GetConnectedPeers() []string {
 	pm.mu.RLock()
 	defer pm.mu.RUnlock()
 
 	peers := make([]string, 0, len(pm.peers))
-	for addr := range pm.peers {
-		peers = append(peers, addr)
+	for _, peer := range pm.peers {
+		duration := time.Since(peer.ConnectedAt).Round(time.Second)
+		peerInfo := fmt.Sprintf("%s:%s (connected for %s)",
+			peer.IP,
+			peer.Port,
+			duration)
+		peers = append(peers, peerInfo)
 	}
 	return peers
 }
 
 // HandleConnection xử lý kết nối từ peer
 func handleConnection(conn net.Conn) {
-	defer conn.Close()
-	defer peerManager.RemovePeer(conn) // Make sure we remove the peer when connection ends
 	peerManager.AddPeer(conn)
-
 	// Create a buffer to store incoming data
 	buffer := make([]byte, 1024)
-
 	// Read data from the connection
 	n, err := conn.Read(buffer)
 	if err != nil {
@@ -103,10 +108,11 @@ func handleConnection(conn net.Conn) {
 	peers := peerManager.GetConnectedPeers()
 	response := fmt.Sprintf("Connected peers (%d):\n%s",
 		len(peers),
-		strings.Join(peers, "\n"))
+		strings.Join(peers, "\n")+"!")
 
 	// Send response to peer
 	_, err = conn.Write([]byte(response))
+	fmt.Printf("Sent response to peer: %s\n ------------------------ \n", response)
 	if err != nil {
 		fmt.Printf("Error sending response to peer: %v\n", err)
 		return
@@ -145,19 +151,19 @@ func main() {
 	// Khởi tạo server
 	listener, err := net.Listen("tcp", ":8080")
 	if err != nil {
-		fmt.Printf("Không thể khởi tạo tracker: %v\n", err)
+		fmt.Printf("Failed to initialize tracker: %v\n", err)
 		return
 	}
 	defer listener.Close()
 
 	Address := getLocalIP() + ":8080"
-	fmt.Printf("[%s] Tracker đang chạy tại địa chỉ: %s\n", time.Now().Format("2006-01-02 15:04:05"), Address)
+	fmt.Printf("[%s] Tracker is running at address: %s\n", time.Now().Format("2006-01-02 15:04:05"), Address)
 
 	// Chấp nhận kết nối
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
-			fmt.Printf("Lỗi khi chấp nhận kết nối: %v\n", err)
+			fmt.Printf("Failed to accept connection: %v\n", err)
 			continue
 		}
 		go handleConnection(conn)
