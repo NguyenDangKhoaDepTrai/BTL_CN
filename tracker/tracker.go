@@ -80,9 +80,9 @@ func (pm *PeerManager) GetConnectedPeers() []string {
 
 	peers := make([]string, 0, len(pm.peers))
 	for _, peer := range pm.peers {
-		peerInfo := fmt.Sprintf("%s:%s",
+		peerInfo := fmt.Sprintf("%s\t%s",
 			peer.IP,
-			peer.Port,
+			peer.Filename,
 		)
 		peers = append(peers, peerInfo)
 	}
