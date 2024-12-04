@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"fmt"
 	"log"
-	"net"
 	"os"
 	"strings"
 
@@ -13,37 +12,37 @@ import (
 	"tcp-app/torrent"
 )
 
-func getLocalIP() string {
-	interfaces, err := net.Interfaces()
-	if err != nil {
-		return "unknown"
-	}
+// func getLocalIP() string {
+// 	interfaces, err := net.Interfaces()
+// 	if err != nil {
+// 		return "unknown"
+// 	}
 
-	for _, iface := range interfaces {
-		// Check if it's a wireless interface (common naming patterns)
-		if strings.Contains(strings.ToLower(iface.Name), "wi-fi") ||
-			strings.Contains(strings.ToLower(iface.Name), "wlan") {
+// 	for _, iface := range interfaces {
+// 		// Check if it's a wireless interface (common naming patterns)
+// 		if strings.Contains(strings.ToLower(iface.Name), "wi-fi") ||
+// 			strings.Contains(strings.ToLower(iface.Name), "wlan") {
 
-			addrs, err := iface.Addrs()
-			if err != nil {
-				continue
-			}
+// 			addrs, err := iface.Addrs()
+// 			if err != nil {
+// 				continue
+// 			}
 
-			for _, addr := range addrs {
-				if ipnet, ok := addr.(*net.IPNet); ok {
-					if ip4 := ipnet.IP.To4(); ip4 != nil {
-						return ip4.String()
-					}
-				}
-			}
-		}
-	}
-	return "unknown"
-}
+// 			for _, addr := range addrs {
+// 				if ipnet, ok := addr.(*net.IPNet); ok {
+// 					if ip4 := ipnet.IP.To4(); ip4 != nil {
+// 						return ip4.String()
+// 					}
+// 				}
+// 			}
+// 		}
+// 	}
+// 	return "unknown"
+// }
 
 func main() {
 	trackerAddress := "192.168.101.99:8080"
-	peerAddress := getLocalIP()
+	peerAddress := "192.168.101.11"
 	go func() {
 		serverAddress := fmt.Sprintf("%s:8080", peerAddress)
 		err := server.StartServer(serverAddress, trackerAddress)
@@ -64,11 +63,11 @@ func main() {
 			fmt.Println("Torrent Simulation App")
 			fmt.Println("Commands:")
 			fmt.Println("  connecttotracker       		- Connect to tracker")
-			fmt.Println("  download [torrent-file]  	- Start downloading a file from a torrent file")
-			fmt.Println("  test [ip:port]           	- Test connection to another peer")
+			fmt.Println("  download [torrent-file]  		- Start downloading a file from a torrent file")
+			fmt.Println("  test [ip:port]           		- Test connection to another peer")
 			fmt.Println("  create [file]           		- Create a torrent file from a source file")
-			fmt.Println("  open [torrent-file]      	- Open and display torrent file contents")
-			fmt.Println("  test-file [filename]     	- Test split and merge functionality")
+			fmt.Println("  open [torrent-file]      		- Open and display torrent file contents")
+			fmt.Println("  test-file [filename]     		- Test split and merge functionality")
 			fmt.Println("  clear                   		- Clear the terminal")
 			fmt.Println("  exit                    		- Exit the program")
 			continue

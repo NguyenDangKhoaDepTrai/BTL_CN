@@ -15,50 +15,15 @@ import (
 	"time"
 )
 
-// Add this helper function
-func getLocalIP() string {
-	interfaces, err := net.Interfaces()
-	if err != nil {
-		return "unknown"
-	}
-
-	for _, iface := range interfaces {
-		// Check if it's a wireless interface (common naming patterns)
-		if strings.Contains(strings.ToLower(iface.Name), "wi-fi") ||
-			strings.Contains(strings.ToLower(iface.Name), "wlan") {
-
-			addrs, err := iface.Addrs()
-			if err != nil {
-				continue
-			}
-
-			for _, addr := range addrs {
-				if ipnet, ok := addr.(*net.IPNet); ok {
-					if ip4 := ipnet.IP.To4(); ip4 != nil {
-						return ip4.String()
-					}
-				}
-			}
-		}
-	}
-	return "unknown"
-}
-
 // StartServer initializes the server to handle peer requests.
-func StartServer(address string, trackerAddress string) error {
-	listener, err := net.Listen("tcp", address)
+func StartServer(serverAddress string, trackerAddress string) error {
+	listener, err := net.Listen("tcp", serverAddress)
 	if err != nil {
 		return fmt.Errorf("error starting TCP server: %v", err)
 	}
 	defer listener.Close()
 
-	// Get actual IP and port
-	localIP := getLocalIP()
-	_, port, _ := net.SplitHostPort(listener.Addr().String())
-	actualAddress := fmt.Sprintf("%s:%s", localIP, port)
-
-	fmt.Printf("Server listening on %s...\n", address)
-	fmt.Printf("Local address: %s\n", actualAddress)
+	fmt.Printf("Server listening on %s...\n", serverAddress)
 	for {
 		conn, err := listener.Accept() // Chấp nhận kết nối từ client
 		if err != nil {

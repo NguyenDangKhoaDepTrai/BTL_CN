@@ -4,7 +4,6 @@ package main
 import (
 	"fmt"
 	"net"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -50,7 +49,7 @@ func (pm *PeerManager) AddPeer(conn net.Conn) error {
 	// Add peer to the manager
 	pm.peers[peerAddr] = &PeerConnection{
 		IP:          addr.IP.String(),
-		Port:        strconv.Itoa(addr.Port),
+		Port:        ":8080",
 		ConnectedAt: time.Now(),
 	}
 
@@ -141,45 +140,17 @@ func handleConnection(conn net.Conn) {
 	}
 }
 
-func getLocalIP() string {
-	interfaces, err := net.Interfaces()
-	if err != nil {
-		return "unknown"
-	}
-
-	for _, iface := range interfaces {
-		// Check if it's a wireless interface (common naming patterns)
-		if strings.Contains(strings.ToLower(iface.Name), "wi-fi") ||
-			strings.Contains(strings.ToLower(iface.Name), "wlan") {
-
-			addrs, err := iface.Addrs()
-			if err != nil {
-				continue
-			}
-
-			for _, addr := range addrs {
-				if ipnet, ok := addr.(*net.IPNet); ok {
-					if ip4 := ipnet.IP.To4(); ip4 != nil {
-						return ip4.String()
-					}
-				}
-			}
-		}
-	}
-	return "unknown"
-}
-
 func main() {
+	trackerAddress := "192.168.101.99:8080"
 	// Khởi tạo server
-	listener, err := net.Listen("tcp", ":8080")
+	listener, err := net.Listen("tcp", trackerAddress)
 	if err != nil {
 		fmt.Printf("Failed to initialize tracker: %v\n", err)
 		return
 	}
 	defer listener.Close()
 
-	Address := getLocalIP() + ":8080"
-	fmt.Printf("[%s] Tracker is running at address: %s\n", time.Now().Format("2006-01-02 15:04:05"), Address)
+	fmt.Printf("[%s] Tracker is running at address: %s\n", time.Now().Format("2006-01-02 15:04:05"), trackerAddress)
 
 	// Chấp nhận kết nối
 	for {

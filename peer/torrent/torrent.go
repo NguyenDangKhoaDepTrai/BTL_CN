@@ -133,7 +133,7 @@ func CreateTorrent(path string, trackerAddress string) (TorrentFile, error) {
 	bto := bencodeTorrent{
 		Announce: trackerAddress,
 		Info: bencodeInfo{
-			PieceLength: 524288, // Standard piece length of 512KB
+			PieceLength: 262144, // Standard piece length of 256KB
 			Name:        fileInfo.Name(),
 			Length:      int(fileInfo.Size()),
 		},
