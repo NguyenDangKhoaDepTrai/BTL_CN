@@ -10,8 +10,6 @@ import (
 	"io"
 	"net"
 	"os"
-	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -28,6 +26,14 @@ type PieceResult struct {
 	Index int
 	Data  []byte
 	Error error
+}
+
+// TorrentInfo struct để parse JSON
+type TorrentInfo struct {
+	FileName    string `json:"FileName"`
+	FilePath    string `json:"FilePath"`
+	InfoHash    string `json:"InfoHash"`
+	PieceHashes string `json:"PieceHashes"`
 }
 
 func StartDownload(torrentFile string) {
@@ -223,45 +229,43 @@ func performHandshake(address string, infoHash []byte) error {
 
 func ConnectToTracker(trackerAddress string, peerAddress string) error {
 	conn, err := net.Dial("tcp", trackerAddress)
-
 	if err != nil {
 		return fmt.Errorf("connection failed: %v", err)
 	}
 	defer conn.Close()
 
-	// Read torrent info to get the info hash
-	torrentInfo, err := os.ReadFile("torrent_info.json")
+	fmt.Println("Connected to tracker")
+
+	// Đọc và parse file JSON
+	jsonData, err := os.ReadFile("torrent_info.json")
 	if err != nil {
-		return fmt.Errorf("error reading torrent_info.json: %v", err)
+		return fmt.Errorf("failed to read JSON file: %v", err)
 	}
 
-	var torrentInfoMap map[string]string
-	if err := json.Unmarshal(torrentInfo, &torrentInfoMap); err != nil {
-		return fmt.Errorf("error unmarshalling torrent_info.json: %v", err)
-	}
-	port, _ := strconv.Atoi(peerAddress[strings.LastIndex(peerAddress, ":")+1:])
-	peerID := peerAddress[:strings.LastIndex(peerAddress, ":")]
-
-	// Create peer info message
-	peerInfo := map[string]string{
-		"event":      "started",
-		"info_hash":  torrentInfoMap["InfoHash"],
-		"peer_id":    peerID,
-		"port":       strconv.Itoa(port),
-		"uploaded":   "0",
-		"downloaded": "0",
+	var torrentInfo TorrentInfo
+	if err := json.Unmarshal(jsonData, &torrentInfo); err != nil {
+		return fmt.Errorf("failed to parse JSON: %v", err)
 	}
 
-	// Convert to JSON and send to tracker
-	message, err := json.Marshal(peerInfo)
+	// Tạo message để gửi
+	// Format: ANNOUNCE:{peerAddress}:{fileName}
+	message := fmt.Sprintf("%s:%s\n",
+		peerAddress,
+		torrentInfo.FileName,
+	)
+
+	// Gửi message đến tracker
+	if _, err := conn.Write([]byte(message)); err != nil {
+		return fmt.Errorf("failed to send data: %v", err)
+	}
+
+	// Đọc phản hồi từ tracker
+	reader := bufio.NewReader(conn)
+	response, err := reader.ReadString('\n')
 	if err != nil {
-		return fmt.Errorf("error marshalling peer info: %v", err)
+		return fmt.Errorf("failed to read tracker response: %v", err)
 	}
 
-	// Send the message followed by a newline
-	message = append(message, '\n')
-	if _, err := conn.Write(message); err != nil {
-		return fmt.Errorf("error sending to tracker: %v", err)
-	}
+	fmt.Printf("Tracker response: %s", response)
 	return nil
 }

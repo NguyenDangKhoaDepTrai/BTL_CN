@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -96,6 +97,37 @@ func handleConnection(conn net.Conn) {
 	// Convert the data to a string and print it
 	data := string(buffer[:n])
 	fmt.Printf("Dữ liệu nhận được từ peer: %s\n", data)
+
+	// Send response to peer
+	conn.Write([]byte("OK"))
+}
+
+func getLocalIP() string {
+	interfaces, err := net.Interfaces()
+	if err != nil {
+		return "unknown"
+	}
+
+	for _, iface := range interfaces {
+		// Check if it's a wireless interface (common naming patterns)
+		if strings.Contains(strings.ToLower(iface.Name), "wi-fi") ||
+			strings.Contains(strings.ToLower(iface.Name), "wlan") {
+
+			addrs, err := iface.Addrs()
+			if err != nil {
+				continue
+			}
+
+			for _, addr := range addrs {
+				if ipnet, ok := addr.(*net.IPNet); ok {
+					if ip4 := ipnet.IP.To4(); ip4 != nil {
+						return ip4.String()
+					}
+				}
+			}
+		}
+	}
+	return "unknown"
 }
 
 func main() {
@@ -107,7 +139,8 @@ func main() {
 	}
 	defer listener.Close()
 
-	fmt.Printf("[%s] Tracker đang chạy tại địa chỉ: %s\n", time.Now().Format("2006-01-02 15:04:05"), listener.Addr().String())
+	Address := getLocalIP() + ":8080"
+	fmt.Printf("[%s] Tracker đang chạy tại địa chỉ: %s\n", time.Now().Format("2006-01-02 15:04:05"), Address)
 
 	// Chấp nhận kết nối
 	for {

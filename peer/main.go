@@ -42,7 +42,7 @@ func getLocalIP() string {
 }
 
 func main() {
-	trackerAddress := "192.168.101.92:8080"
+	trackerAddress := "192.168.101.99:8080"
 	peerAddress := getLocalIP()
 	go func() {
 		serverAddress := fmt.Sprintf("%s:8080", peerAddress)
@@ -84,7 +84,7 @@ func main() {
 		//-----------------------------------------------------------------------------------------------------
 		case strings.HasPrefix(commandLine, "connecttotracker"):
 			args := strings.Split(commandLine, " ")
-			if len(args) < 2 {
+			if len(args) != 1 {
 				fmt.Println("Usage: connecttotracker")
 				continue
 			}
