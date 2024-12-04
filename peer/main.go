@@ -88,12 +88,7 @@ func main() {
 				fmt.Println("Usage: connecttotracker")
 				continue
 			}
-			err := client.ConnectToTracker(trackerAddress, peerAddress)
-			if err != nil {
-				fmt.Printf("Failed to connect to tracker: %v\n", err)
-			} else {
-				fmt.Printf("\nSuccessfully connected to tracker at %s\n", trackerAddress)
-			}
+			client.ConnectToTracker(trackerAddress, peerAddress)
 		//-----------------------------------------------------------------------------------------------------
 		case strings.HasPrefix(commandLine, "create"):
 			args := strings.Split(commandLine, " ")

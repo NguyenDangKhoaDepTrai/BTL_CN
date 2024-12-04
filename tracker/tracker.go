@@ -29,17 +29,22 @@ var peerManager = &PeerManager{
 }
 
 // AddPeer adds a new peer to the manager and notifies about the connection
-func (pm *PeerManager) AddPeer(conn net.Conn) {
+func (pm *PeerManager) AddPeer(conn net.Conn) error {
 	addr := conn.RemoteAddr().(*net.TCPAddr)
-	peerAddr := fmt.Sprintf("%s:%d", addr.IP.String(), addr.Port)
+	peerAddr := fmt.Sprintf("%s", addr.IP.String())
 
 	pm.mu.Lock()
 	defer pm.mu.Unlock()
 
-	// Check if peer already exists
-	if _, exists := pm.peers[peerAddr]; exists {
-		fmt.Printf("\n[%s] Peer %s is already connected\n", time.Now().Format("2006-01-02 15:04:05"), peerAddr)
-		return
+	// Check if peer with same IP already exists
+	for existingAddr, existingPeer := range pm.peers {
+		if existingPeer.IP == addr.IP.String() {
+			fmt.Printf("\n[%s] Peer %s is already connected (as %s)\n",
+				time.Now().Format("2006-01-02 15:04:05"),
+				addr.IP.String(),
+				existingAddr)
+			return nil
+		}
 	}
 
 	// Add peer to the manager
@@ -50,14 +55,15 @@ func (pm *PeerManager) AddPeer(conn net.Conn) {
 	}
 
 	// Notify about new connection
-	fmt.Printf("\n[%s] New peer connected from %s\n", time.Now().Format("2006-01-02 15:04:05"), peerAddr)
+	fmt.Printf("\n[%s] New peer connected from %s\n", time.Now().Format("2006-01-02 15:04:05"), addr.IP.String())
 	fmt.Printf("Total connected peers: %d\n", len(pm.peers))
+	return nil
 }
 
 // RemovePeer removes a peer and notifies about the disconnection
-func (pm *PeerManager) RemovePeer(conn net.Conn) {
+func (pm *PeerManager) RemovePeer(conn net.Conn) error {
 	addr := conn.RemoteAddr().(*net.TCPAddr)
-	peerAddr := fmt.Sprintf("%s:%d", addr.IP.String(), addr.Port)
+	peerAddr := fmt.Sprintf("%s", addr.IP.String())
 
 	pm.mu.Lock()
 	defer pm.mu.Unlock()
@@ -69,6 +75,7 @@ func (pm *PeerManager) RemovePeer(conn net.Conn) {
 		fmt.Printf("\n[%s] Peer disconnected from %s (connected for %s)\n", time.Now().Format("2006-01-02 15:04:05"), peerAddr, duration)
 		fmt.Printf("Total connected peers: %d\n", len(pm.peers))
 	}
+	return nil
 }
 
 // GetConnectedPeers returns a list of peer details including IP, Port, and connection duration
@@ -90,7 +97,6 @@ func (pm *PeerManager) GetConnectedPeers() []string {
 
 // HandleConnection xử lý kết nối từ peer
 func handleConnection(conn net.Conn) {
-	peerManager.AddPeer(conn)
 	// Create a buffer to store incoming data
 	buffer := make([]byte, 1024)
 	// Read data from the connection
@@ -104,6 +110,22 @@ func handleConnection(conn net.Conn) {
 	data := string(buffer[:n])
 	fmt.Printf("Received data from peer: %s\n", data)
 
+	// Handle different commands
+	switch {
+	case strings.HasPrefix(data, "START:"):
+		err = peerManager.AddPeer(conn)
+		if err != nil {
+			fmt.Printf("Error adding peer: %v\n", err)
+			return
+		}
+	case strings.HasPrefix(data, "STOP:"):
+		err = peerManager.RemovePeer(conn)
+		if err != nil {
+			fmt.Printf("Error removing peer: %v\n", err)
+			return
+		}
+	}
+
 	// Prepare response with connected peers information
 	peers := peerManager.GetConnectedPeers()
 	response := fmt.Sprintf("Connected peers (%d):\n%s",
@@ -112,7 +134,7 @@ func handleConnection(conn net.Conn) {
 
 	// Send response to peer
 	_, err = conn.Write([]byte(response))
-	fmt.Printf("Sent response to peer: %s\n ------------------------ \n", response)
+	fmt.Printf("Sent response to peer: %s\n----------------------------------------------- \n", response)
 	if err != nil {
 		fmt.Printf("Error sending response to peer: %v\n", err)
 		return

@@ -248,8 +248,8 @@ func ConnectToTracker(trackerAddress string, peerAddress string) error {
 	}
 
 	// Tạo message để gửi
-	// Format: ANNOUNCE:{peerAddress}:{fileName}
-	message := fmt.Sprintf("%s:%s\n",
+	// Format: START:{peerAddress}:{fileName}
+	message := fmt.Sprintf("START:%s:%s\n",
 		peerAddress,
 		torrentInfo.FileName,
 	)
@@ -266,10 +266,35 @@ func ConnectToTracker(trackerAddress string, peerAddress string) error {
 		return fmt.Errorf("failed to read tracker response: %v", err)
 	}
 
-	fmt.Printf("Tracker response: %s", response)
+	fmt.Printf("---------------------------------\nTracker response: %s", response)
 	return nil
 }
 
 func DisconnectToTracker(trackerAddress string, peerAddress string) error {
+	conn, err := net.Dial("tcp", trackerAddress)
+	if err != nil {
+		return fmt.Errorf("connection failed: %v", err)
+	}
+	defer conn.Close()
+
+	// Tạo message để gửi
+	// Format: STOP:{peerAddress}
+	message := fmt.Sprintf("STOP:%s\n",
+		peerAddress,
+	)
+
+	// Gửi message đến tracker
+	if _, err := conn.Write([]byte(message)); err != nil {
+		return fmt.Errorf("failed to send data: %v", err)
+	}
+
+	// Đọc phản hồi từ tracker
+	reader := bufio.NewReader(conn)
+	response, err := reader.ReadString('!')
+	if err != nil {
+		return fmt.Errorf("failed to read tracker response: %v", err)
+	}
+
+	fmt.Printf("---------------------------------\nTracker response: %s", response)
 	return nil
 }
