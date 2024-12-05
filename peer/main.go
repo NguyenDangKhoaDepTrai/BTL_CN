@@ -77,8 +77,9 @@ type AddrAndFilename struct {
 }
 
 func main() {
-	peerAddress := "192.168.101.92"
-	//peerAddress := "192.168.101.98"
+	var peerAddress string
+	fmt.Print("Enter your peer address (e.g., 192.168.101.92): ")
+	fmt.Scanln(&peerAddress)
 	go func() {
 		serverAddress := fmt.Sprintf("%s:8080", peerAddress)
 		err := server.StartServer(serverAddress)
@@ -105,7 +106,7 @@ func main() {
 			fmt.Println("  getlistoftrackers 		- Get list of trackers connected")
 			fmt.Println("  download [torrent-file]  		- Start downloading a file from a torrent file")
 			fmt.Println("  test [ip:port]           		- Test connection to another peer")
-			fmt.Println("  create [file]           		- Create a torrent file from a source file")
+			fmt.Println("  create [file] [tracker-address]           		- Create a torrent file from a source file")
 			//fmt.Println("  open [torrent-file]      		- Open and display torrent file contents")
 			//fmt.Println("  test-file [filename]     		- Test split and merge functionality")
 			fmt.Println("  clear                   		- Clear the terminal")
@@ -209,12 +210,14 @@ func main() {
 		//-----------------------------------------------------------------------------------------------------
 		case strings.HasPrefix(commandLine, "create"):
 			args := strings.Split(commandLine, " ")
-			if len(args) < 2 {
-				fmt.Println("Usage: create [file]")
+			if len(args) < 3 {
+				fmt.Println("Usage: create [file] [tracker-address]")
 				continue
 			}
 			sourceFile := args[1]
-			torrentFileName, err := torrent.Create(sourceFile)
+			trackerAddress := args[2]
+			trackerAddress = trackerAddress + ":8080"
+			torrentFileName, err := torrent.Create(sourceFile, trackerAddress)
 			if err != nil {
 				fmt.Printf("Failed to create torrent file: %v\n", err)
 			} else {
