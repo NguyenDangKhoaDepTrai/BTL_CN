@@ -257,13 +257,13 @@ func ConnectToTracker(trackerAddress string, peerAddress string, filename string
 	}
 
 	// Đọc phản hồi từ tracker
-	reader := bufio.NewReader(conn)
-	response, err := reader.ReadString('!')
-	if err != nil {
-		return fmt.Errorf("failed to read tracker response: %v", err)
-	}
+	// reader := bufio.NewReader(conn)
+	// response, err := reader.ReadString('!')
+	// if err != nil {
+	// 	return fmt.Errorf("failed to read tracker response: %v", err)
+	// }
 
-	fmt.Printf("---------------------------------\nTracker response: %s", response)
+	// fmt.Printf("---------------------------------\nTracker response: %s", response)
 	return nil
 }
 func DisconnectToTrackerForAFile(trackerAddress string, peerAddress string, filename string) error {
@@ -283,13 +283,13 @@ func DisconnectToTrackerForAFile(trackerAddress string, peerAddress string, file
 	}
 
 	// Đọc phản hồi từ tracker
-	reader := bufio.NewReader(conn)
-	response, err := reader.ReadString('!')
-	if err != nil {
-		return fmt.Errorf("failed to read tracker response: %v", err)
-	}
+	// reader := bufio.NewReader(conn)
+	// response, err := reader.ReadString('!')
+	// if err != nil {
+	// 	return fmt.Errorf("failed to read tracker response: %v", err)
+	// }
 
-	fmt.Printf("---------------------------------\nTracker response: %s", response)
+	// fmt.Printf("---------------------------------\nTracker response: %s", response)
 	return nil
 }
 
@@ -312,11 +312,12 @@ func GetListOfPeersForAFile(trackerAddress string, peerAddress string, filename 
 	// Đọc phản hồi từ tracker
 	reader := bufio.NewReader(conn)
 	response, err := reader.ReadString('!')
+	response = response[:len(response)-1] // Remove the last character (!)
 	if err != nil {
 		return fmt.Errorf("failed to read tracker response: %v", err)
 	}
 
-	fmt.Printf("---------------------------------\nTracker response: %s", response)
+	fmt.Printf("Tracker response: %s\n", response)
 	return nil
 }
 
@@ -337,12 +338,12 @@ func DisconnectToTracker(trackerAddress string, peerAddress string) error {
 	}
 
 	// Đọc phản hồi từ tracker
-	reader := bufio.NewReader(conn)
-	response, err := reader.ReadString('!')
-	if err != nil {
-		return fmt.Errorf("failed to read tracker response: %v", err)
-	}
+	// reader := bufio.NewReader(conn)
+	// response, err := reader.ReadString('!')
+	// if err != nil {
+	// 	return fmt.Errorf("failed to read tracker response: %v", err)
+	// }
 
-	fmt.Printf("---------------------------------\nTracker response: %s", response)
+	// fmt.Printf("---------------------------------\nTracker response: %s", response)
 	return nil
 }

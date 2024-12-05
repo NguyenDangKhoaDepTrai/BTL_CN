@@ -12,7 +12,17 @@ import (
 var peerInfo = make(map[string][]string)
 
 func AddPeer(peerAddr string, fileName string) error {
-	peerInfo[fileName] = append(peerInfo[fileName], peerAddr)
+	exist := false
+	for _, peer := range peerInfo[fileName] {
+		if peer == peerAddr {
+			fmt.Printf("Peer: '%s' already exists in file: '%s'\n", peerAddr, fileName)
+			exist = true
+			break
+		}
+	}
+	if !exist {
+		peerInfo[fileName] = append(peerInfo[fileName], peerAddr)
+	}
 	return nil
 }
 
@@ -58,6 +68,7 @@ func handleConnection(conn net.Conn) {
 
 	// Convert the data to a string and print it
 	data := string(buffer[:n])
+	fmt.Println("-------------------------------------------------------------------")
 	fmt.Printf("Received data from peer: %s\n", data)
 
 	args := strings.Split(data, ":")
@@ -88,8 +99,9 @@ func handleConnection(conn net.Conn) {
 	case strings.HasPrefix(data, "LIST:"):
 		fileName := args[1]
 		peers := peerInfo[fileName]
-		response := fmt.Sprintf("LIST:%s:%v", fileName, peers)
+		response := fmt.Sprintf("LIST:%s:%v\n!", fileName, peers)
 		conn.Write([]byte(response))
+		fmt.Printf("Sent response to peer: %s\n", string(response))
 	}
 
 	// Print peerInfo in a clearer way
@@ -109,7 +121,7 @@ func handleConnection(conn net.Conn) {
 		return
 	}
 	_, err = conn.Write(append(response, '!')) // Adding '!' as message delimiter
-	fmt.Printf("Sent response to peer: %s\n-------------------------------------------------------------------\n", string(response))
+	//fmt.Printf("Sent response to peer: %s\n-------------------------------------------------------------------\n", string(response))
 	if err != nil {
 		fmt.Printf("Error sending response to peer: %v\n", err)
 		return

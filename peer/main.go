@@ -62,7 +62,7 @@ func getTrackerAddress(torrentPath string) (string, error) {
 	return torrent.Announce, nil
 }
 
-func removeFromSlice(slice []string, item string) []string {
+func removeFromSlice(slice []AddrAndFilename, item AddrAndFilename) []AddrAndFilename {
 	for i, v := range slice {
 		if v == item {
 			return append(slice[:i], slice[i+1:]...)
@@ -71,8 +71,13 @@ func removeFromSlice(slice []string, item string) []string {
 	return slice
 }
 
+type AddrAndFilename struct {
+	Addr     string
+	Filename string
+}
+
 func main() {
-	peerAddress := "192.168.101.11"
+	peerAddress := "192.168.101.92"
 	//peerAddress := "192.168.101.98"
 	go func() {
 		serverAddress := fmt.Sprintf("%s:8080", peerAddress)
@@ -82,7 +87,7 @@ func main() {
 		}
 	}()
 	reader := bufio.NewReader(os.Stdin)
-	connectedTrackerAddresses := []string{}
+	connectedTrackerAddresses := []AddrAndFilename{}
 	for {
 		fmt.Print("\n> ") // CLI prompt
 		commandLine, _ := reader.ReadString('\n')
@@ -128,13 +133,21 @@ func main() {
 				fmt.Printf("Failed to get tracker address, please check the torrent file: %v\n", err)
 				continue
 			}
-			fmt.Printf("Tracker address: %s\n", trackerAddress)
 			err = client.ConnectToTracker(trackerAddress, peerAddress, filename)
 			if err != nil {
 				fmt.Printf("Failed to connect to tracker: %v\n", err)
 				return
 			}
-			connectedTrackerAddresses = append(connectedTrackerAddresses, trackerAddress)
+			exist := false
+			for _, tracker := range connectedTrackerAddresses {
+				if tracker.Addr == trackerAddress && tracker.Filename == filename {
+					exist = true
+					break
+				}
+			}
+			if !exist {
+				connectedTrackerAddresses = append(connectedTrackerAddresses, AddrAndFilename{Addr: trackerAddress, Filename: filename})
+			}
 		//-----------------------------------------------------------------------------------------------------
 		case strings.HasPrefix(commandLine, "disconnecttotracker"):
 			args := strings.Split(commandLine, " ")
@@ -148,13 +161,12 @@ func main() {
 				fmt.Printf("Failed to get tracker address, please check the torrent file: %v\n", err)
 				continue
 			}
-			fmt.Printf("Tracker address: %s\n", trackerAddress)
 			err = client.DisconnectToTrackerForAFile(trackerAddress, peerAddress, filename)
 			if err != nil {
 				fmt.Printf("Failed to disconnect to tracker: %v\n", err)
 				continue
 			}
-			connectedTrackerAddresses = removeFromSlice(connectedTrackerAddresses, trackerAddress)
+			connectedTrackerAddresses = removeFromSlice(connectedTrackerAddresses, AddrAndFilename{Addr: trackerAddress, Filename: filename})
 		//-----------------------------------------------------------------------------------------------------
 		case strings.HasPrefix(commandLine, "getlistofpeers"):
 			args := strings.Split(commandLine, " ")
@@ -168,16 +180,15 @@ func main() {
 				fmt.Printf("Failed to get tracker address, please check the torrent file: %v\n", err)
 				continue
 			}
-			fmt.Printf("Tracker address: %s\n", trackerAddress)
 			found := false
 			for _, tracker := range connectedTrackerAddresses {
-				if tracker == trackerAddress {
+				if tracker.Addr == trackerAddress && tracker.Filename == filename {
 					found = true
 					break
 				}
 			}
 			if !found {
-				fmt.Println("You are not connected to this tracker")
+				fmt.Println("You are not connected to tracker for this file")
 				continue
 			}
 			err = client.GetListOfPeersForAFile(trackerAddress, peerAddress, filename)
@@ -256,7 +267,7 @@ func main() {
 		case commandLine == "exit":
 			fmt.Println("Exiting...")
 			for _, trackerAddress := range connectedTrackerAddresses {
-				client.DisconnectToTracker(trackerAddress, peerAddress)
+				client.DisconnectToTracker(trackerAddress.Addr, peerAddress)
 			}
 			return
 		//-----------------------------------------------------------------------------------------------------

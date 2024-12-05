@@ -183,7 +183,7 @@ func (t *TorrentFile) createTorrentFile(path string) error {
 }
 
 func Create(path string) (torrentPath string, err error) {
-	trackerAddress := "192.168.101.10:8081"
+	trackerAddress := "192.168.101.11:8080"
 	torrentFile, err := CreateTorrent(path, trackerAddress)
 
 	if err != nil {
