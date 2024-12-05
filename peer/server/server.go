@@ -16,7 +16,7 @@ import (
 )
 
 // StartServer initializes the server to handle peer requests.
-func StartServer(serverAddress string, trackerAddress string) error {
+func StartServer(serverAddress string) error {
 	listener, err := net.Listen("tcp", serverAddress)
 	if err != nil {
 		return fmt.Errorf("error starting TCP server: %v", err)

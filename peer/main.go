@@ -10,9 +10,11 @@ import (
 	"tcp-app/client"
 	"tcp-app/server"
 	"tcp-app/torrent"
+
+	"github.com/jackpal/bencode-go" // or another bencode library
 )
 
-// func getLocalIP() string {
+// func getLocalIP() string { //this function is only used for windows
 // 	interfaces, err := net.Interfaces()
 // 	if err != nil {
 // 		return "unknown"
@@ -28,30 +30,59 @@ import (
 // 				continue
 // 			}
 
-// 			for _, addr := range addrs {
-// 				if ipnet, ok := addr.(*net.IPNet); ok {
-// 					if ip4 := ipnet.IP.To4(); ip4 != nil {
-// 						return ip4.String()
-// 					}
-// 				}
-// 			}
-// 		}
-// 	}
-// 	return "unknown"
-// }
+//				for _, addr := range addrs {
+//					if ipnet, ok := addr.(*net.IPNet); ok {
+//						if ip4 := ipnet.IP.To4(); ip4 != nil {
+//							return ip4.String()
+//						}
+//					}
+//				}
+//			}
+//		}
+//		return "unknown"
+//	}
+func getTrackerAddress(torrentPath string) (string, error) {
+	file, err := os.Open(torrentPath)
+	if err != nil {
+		return "", fmt.Errorf("error opening torrent file: %v", err)
+	}
+	defer file.Close()
+
+	// Define a struct to decode the torrent file
+	type TorrentFile struct {
+		Announce string `bencode:"announce"`
+	}
+
+	var torrent TorrentFile
+	err = bencode.Unmarshal(file, &torrent)
+	if err != nil {
+		return "", fmt.Errorf("error decoding torrent file: %v", err)
+	}
+
+	return torrent.Announce, nil
+}
+
+func removeFromSlice(slice []string, item string) []string {
+	for i, v := range slice {
+		if v == item {
+			return append(slice[:i], slice[i+1:]...)
+		}
+	}
+	return slice
+}
 
 func main() {
-	trackerAddress := "192.168.101.11:8080"
 	peerAddress := "192.168.101.11"
 	//peerAddress := "192.168.101.98"
 	go func() {
 		serverAddress := fmt.Sprintf("%s:8080", peerAddress)
-		err := server.StartServer(serverAddress, trackerAddress)
+		err := server.StartServer(serverAddress)
 		if err != nil {
 			log.Fatalf("Failed to start server: %v\n", err)
 		}
 	}()
 	reader := bufio.NewReader(os.Stdin)
+	connectedTrackerAddresses := []string{}
 	for {
 		fmt.Print("\n> ") // CLI prompt
 		commandLine, _ := reader.ReadString('\n')
@@ -65,12 +96,13 @@ func main() {
 			fmt.Println("Commands:")
 			fmt.Println("  connecttotracker [filename]       	- Connect to tracker and announce file")
 			fmt.Println("  disconnecttotracker [filename]    	- Disconnect from tracker")
-			fmt.Println("  getlist [filename] 	- Get list of peers for a specific file")
+			fmt.Println("  getlistofpeers [filename] 	- Get list of peers for a specific file")
+			fmt.Println("  getlistoftrackers 		- Get list of trackers connected")
 			fmt.Println("  download [torrent-file]  		- Start downloading a file from a torrent file")
 			fmt.Println("  test [ip:port]           		- Test connection to another peer")
 			fmt.Println("  create [file]           		- Create a torrent file from a source file")
-			fmt.Println("  open [torrent-file]      		- Open and display torrent file contents")
-			fmt.Println("  test-file [filename]     		- Test split and merge functionality")
+			//fmt.Println("  open [torrent-file]      		- Open and display torrent file contents")
+			//fmt.Println("  test-file [filename]     		- Test split and merge functionality")
 			fmt.Println("  clear                   		- Clear the terminal")
 			fmt.Println("  exit                    		- Exit the program")
 			continue
@@ -91,7 +123,18 @@ func main() {
 				continue
 			}
 			filename := args[1]
-			client.ConnectToTracker(trackerAddress, peerAddress, filename)
+			trackerAddress, err := getTrackerAddress(filename + ".torrent")
+			if err != nil {
+				fmt.Printf("Failed to get tracker address, please check the torrent file: %v\n", err)
+				continue
+			}
+			fmt.Printf("Tracker address: %s\n", trackerAddress)
+			err = client.ConnectToTracker(trackerAddress, peerAddress, filename)
+			if err != nil {
+				fmt.Printf("Failed to connect to tracker: %v\n", err)
+				return
+			}
+			connectedTrackerAddresses = append(connectedTrackerAddresses, trackerAddress)
 		//-----------------------------------------------------------------------------------------------------
 		case strings.HasPrefix(commandLine, "disconnecttotracker"):
 			args := strings.Split(commandLine, " ")
@@ -100,16 +143,58 @@ func main() {
 				continue
 			}
 			filename := args[1]
-			client.DisconnectToTrackerForAFile(trackerAddress, peerAddress, filename)
+			trackerAddress, err := getTrackerAddress(filename + ".torrent")
+			if err != nil {
+				fmt.Printf("Failed to get tracker address, please check the torrent file: %v\n", err)
+				continue
+			}
+			fmt.Printf("Tracker address: %s\n", trackerAddress)
+			err = client.DisconnectToTrackerForAFile(trackerAddress, peerAddress, filename)
+			if err != nil {
+				fmt.Printf("Failed to disconnect to tracker: %v\n", err)
+				continue
+			}
+			connectedTrackerAddresses = removeFromSlice(connectedTrackerAddresses, trackerAddress)
 		//-----------------------------------------------------------------------------------------------------
-		case strings.HasPrefix(commandLine, "getlist"):
+		case strings.HasPrefix(commandLine, "getlistofpeers"):
 			args := strings.Split(commandLine, " ")
 			if len(args) != 2 {
-				fmt.Println("Usage: getlist [filename]")
+				fmt.Println("Usage: getlistofpeers [filename]")
 				continue
 			}
 			filename := args[1]
-			client.GetListOfPeersForAFile(trackerAddress, peerAddress, filename)
+			trackerAddress, err := getTrackerAddress(filename + ".torrent")
+			if err != nil {
+				fmt.Printf("Failed to get tracker address, please check the torrent file: %v\n", err)
+				continue
+			}
+			fmt.Printf("Tracker address: %s\n", trackerAddress)
+			found := false
+			for _, tracker := range connectedTrackerAddresses {
+				if tracker == trackerAddress {
+					found = true
+					break
+				}
+			}
+			if !found {
+				fmt.Println("You are not connected to this tracker")
+				continue
+			}
+			err = client.GetListOfPeersForAFile(trackerAddress, peerAddress, filename)
+			if err != nil {
+				fmt.Printf("Failed to get list of peers: %v\n", err)
+				continue
+			}
+		//-----------------------------------------------------------------------------------------------------
+		case strings.HasPrefix(commandLine, "getlistoftrackers"):
+			if len(connectedTrackerAddresses) == 0 {
+				fmt.Println("No trackers connected")
+				continue
+			}
+			fmt.Println("List of trackers connected:")
+			for _, trackerAddress := range connectedTrackerAddresses {
+				fmt.Println(trackerAddress)
+			}
 		//-----------------------------------------------------------------------------------------------------
 		case strings.HasPrefix(commandLine, "create"):
 			args := strings.Split(commandLine, " ")
@@ -118,7 +203,7 @@ func main() {
 				continue
 			}
 			sourceFile := args[1]
-			torrentFileName, err := torrent.Create(sourceFile, trackerAddress)
+			torrentFileName, err := torrent.Create(sourceFile)
 			if err != nil {
 				fmt.Printf("Failed to create torrent file: %v\n", err)
 			} else {
@@ -147,30 +232,32 @@ func main() {
 				fmt.Printf("Successfully connected to %s\n", peerAddress)
 			}
 		//-----------------------------------------------------------------------------------------------------
-		case strings.HasPrefix(commandLine, "open"):
-			args := strings.Split(commandLine, " ")
-			if len(args) < 2 {
-				fmt.Println("Usage: open [torrent-file]")
-				continue
-			}
-			torrentFile := args[1]
-			torrent.Open(torrentFile)
+		// case strings.HasPrefix(commandLine, "open"):
+		// 	args := strings.Split(commandLine, " ")
+		// 	if len(args) < 2 {
+		// 		fmt.Println("Usage: open [torrent-file]")
+		// 		continue
+		// 	}
+		// 	torrentFile := args[1]
+		// 	torrent.Open(torrentFile)
 		//-----------------------------------------------------------------------------------------------------
-		case strings.HasPrefix(commandLine, "check-file"):
-			args := strings.Split(commandLine, " ")
-			if len(args) < 2 {
-				fmt.Println("Usage: check-file <filename>")
-				return
-			}
-			filename := args[1]
-			if err := torrent.TestSplitAndMerge(filename); err != nil {
-				fmt.Printf("Test failed: %v\n", err)
-				return
-			}
+		// case strings.HasPrefix(commandLine, "check-file"):
+		// 	args := strings.Split(commandLine, " ")
+		// 	if len(args) < 2 {
+		// 		fmt.Println("Usage: check-file <filename>")
+		// 		return
+		// 	}
+		// 	filename := args[1]
+		// 	if err := torrent.TestSplitAndMerge(filename); err != nil {
+		// 		fmt.Printf("Test failed: %v\n", err)
+		// 		return
+		// 	}
 		//-----------------------------------------------------------------------------------------------------
 		case commandLine == "exit":
 			fmt.Println("Exiting...")
-			client.DisconnectToTracker(trackerAddress, peerAddress)
+			for _, trackerAddress := range connectedTrackerAddresses {
+				client.DisconnectToTracker(trackerAddress, peerAddress)
+			}
 			return
 		//-----------------------------------------------------------------------------------------------------
 		case commandLine == "clear":

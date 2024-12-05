@@ -182,7 +182,8 @@ func (t *TorrentFile) createTorrentFile(path string) error {
 	return bencode.Marshal(file, bto)
 }
 
-func Create(path string, trackerAddress string) (torrentPath string, err error) {
+func Create(path string) (torrentPath string, err error) {
+	trackerAddress := "192.168.101.10:8081"
 	torrentFile, err := CreateTorrent(path, trackerAddress)
 
 	if err != nil {
