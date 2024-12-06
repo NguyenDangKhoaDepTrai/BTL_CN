@@ -141,9 +141,18 @@ func ListTorrentFiles() ([]string, error) {
 	return torrentFiles, nil
 }
 
+func ParseTorrentFile(torrent_file_name string) (*torrent.TorrentFile, error) {
+	torrentPath := "torrent_files/" + torrent_file_name
+	tfs, err := torrent.Open(torrentPath)
+	if err != nil {
+		return nil, fmt.Errorf("error opening torrent file: %v", err)
+	}
+	return &tfs[0], nil
+}
+
 func handleHandshake(conn net.Conn, message string) (string, *FileWorker) {
 	// Get the info hash from the message
-	infoHashMessage := strings.TrimPrefix(message, "HANDSHAKE:")
+	torrent_file_name := strings.TrimPrefix(message, "HANDSHAKE:")
 	//Check if the infohash is in the list of torrent files
 	torrentFiles, err := ListTorrentFiles()
 	if err != nil {
@@ -152,7 +161,7 @@ func handleHandshake(conn net.Conn, message string) (string, *FileWorker) {
 	}
 	found := false
 	for _, file := range torrentFiles {
-		if file == infoHashMessage {
+		if file == torrent_file_name {
 			found = true
 			break
 		}
@@ -161,7 +170,13 @@ func handleHandshake(conn net.Conn, message string) (string, *FileWorker) {
 		fmt.Printf("This torrent file is not in the list of torrent files currently available\n")
 		return "", nil
 	}
+
 	// Create worker for the file
+	tf, err := ParseTorrentFile(torrent_file_name)
+	if err != nil {
+		fmt.Printf("Error parsing torrent file: %v\n", err)
+	}
+	fmt.Printf("CCCCCc file name: %v\n", tf.Name)
 	fileName := "files/demo.pdf"
 	worker, err := NewFileWorker(fileName)
 	if err != nil {
@@ -171,7 +186,7 @@ func handleHandshake(conn net.Conn, message string) (string, *FileWorker) {
 	}
 
 	conn.Write([]byte("OK\n"))
-	return infoHashMessage, worker
+	return torrent_file_name, worker
 }
 
 func handlePieceRequest(conn net.Conn, message string, worker *FileWorker) {
