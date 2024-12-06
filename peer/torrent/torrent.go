@@ -217,7 +217,7 @@ func StreamFilePieces(filePath string, pieceLength int) ([][]byte, error) {
 
 // Create saves a TorrentFile as a .torrent file
 func (t bencodeTorrent) createTorrentFile(path string) error {
-	fmt.Println("Creating torrent file:", t)
+	//fmt.Println("Creating torrent file:", t)
 	file, err := os.Create(path)
 	if err != nil {
 		return err
