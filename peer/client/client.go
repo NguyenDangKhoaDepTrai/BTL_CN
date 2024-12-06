@@ -47,17 +47,18 @@ func StartDownload(torrentFile string) {
 	}
 
 	// Mock the list of peers
-	peers := []string{"192.168.101.92:8080"}
+	peers := []string{"192.168.101.98:8080"}
 
 	// First, test connection and handshake with peers
 	var activePeers []string
 	for _, peer := range peers {
+		fmt.Printf("Testing connection to peer: %s\n", peer)
 		err := TestConnection(peer)
 		if err != nil {
 			fmt.Printf("Peer %s is not available: %v\n", peer, err)
 			continue
 		}
-
+		fmt.Printf("Peer %s is available\n", peer)
 		// Use the first file's InfoHash for handshake (assuming all files share the same InfoHash)
 		if err := performHandshake(peer, tfs[0].InfoHash[:]); err != nil {
 			fmt.Printf("Handshake failed with peer %s: %v\n", peer, err)
@@ -68,7 +69,7 @@ func StartDownload(torrentFile string) {
 	}
 
 	if len(activePeers) == 0 {
-		fmt.Println("No available peers found!")
+		fmt.Println("No available active peers found!")
 		return
 	}
 
@@ -195,7 +196,7 @@ func TestConnection(address string) error {
 	conn.SetDeadline(time.Now().Add(5 * time.Second))
 
 	// Send a test message
-	_, err = conn.Write([]byte("test\n")) // Add newline as message delimiter
+	_, err = conn.Write([]byte("test:\n")) // Add newline as message delimiter
 	if err != nil {
 		return fmt.Errorf("failed to send test message: %v", err)
 	}
@@ -219,7 +220,7 @@ func performHandshake(address string, infoHash []byte) error {
 	defer conn.Close()
 
 	// Send handshake message
-	handshakeMsg := fmt.Sprintf("HANDSHAKE:%x.torrent\n", infoHash)
+	handshakeMsg := fmt.Sprintf("HANDSHAKE:%x\n", infoHash)
 	if _, err := conn.Write([]byte(handshakeMsg)); err != nil {
 		return fmt.Errorf("failed to send handshake: %v", err)
 	}

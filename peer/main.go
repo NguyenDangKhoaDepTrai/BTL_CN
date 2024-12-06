@@ -236,10 +236,11 @@ func main() {
 		case strings.HasPrefix(commandLine, "test"):
 			args := strings.Split(commandLine, " ")
 			if len(args) < 2 {
-				fmt.Println("Usage: test [ip:port]")
+				fmt.Println("Usage: test [ip]")
 				continue
 			}
 			peerAddress := args[1]
+			peerAddress = peerAddress + ":8080"
 			if err := client.TestConnection(peerAddress); err != nil {
 				fmt.Printf("Connection failed: %v\n", err)
 			} else {

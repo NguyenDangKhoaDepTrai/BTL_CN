@@ -1,7 +1,6 @@
 package torrent
 
 import (
-	"bytes"
 	"crypto/sha1"
 	"encoding/json"
 	"fmt"
@@ -47,25 +46,35 @@ func Open(path string) ([]TorrentFile, error) {
 	if err != nil {
 		return []TorrentFile{}, err
 	}
-	fmt.Println(bto.toTorrentFile())
-	return bto.toTorrentFile()
+
+	torrentFiles, err := bto.toTorrentFile()
+	if err != nil {
+		return []TorrentFile{}, err
+	}
+	fmt.Printf("bto.toTorrentFile()[0].Announce: %v\n", torrentFiles[0].Announce)
+	fmt.Printf("bto.toTorrentFile()[0].InfoHash: %x\n", torrentFiles[0].InfoHash)
+	fmt.Printf("bto.toTorrentFile()[0].PieceHashes: %v\n", torrentFiles[0].PieceHashes)
+	fmt.Printf("bto.toTorrentFile()[0].PieceLength: %d\n", torrentFiles[0].PieceLength)
+	fmt.Printf("bto.toTorrentFile()[0].Length: %d\n", torrentFiles[0].Length)
+	fmt.Printf("bto.toTorrentFile()[0].Name: %s\n", torrentFiles[0].Name)
+	return torrentFiles, nil
 }
 
-func (i *bencodeInfo) hash() ([20]byte, error) {
-	var buf bytes.Buffer
-	err := bencode.Marshal(&buf, *i)
-	if err != nil {
-		return [20]byte{}, err
-	}
-	h := sha1.Sum(buf.Bytes())
-	return h, nil
-}
+// func (i bencodeInfo) hash() ([20]byte, error) {
+// 	var buf bytes.Buffer
+// 	err := bencode.Marshal(&buf, i)
+// 	if err != nil {
+// 		return [20]byte{}, err
+// 	}
+// 	h := sha1.Sum(buf.Bytes())
+// 	return h, nil
+// }
 
 func (i *bencodeInfo) splitPieceHashes() ([][20]byte, error) {
 	hashLen := 20 // Length of SHA-1 hash
 	buf := []byte(i.Pieces)
 	if len(buf)%hashLen != 0 {
-		err := fmt.Errorf("Received malformed pieces of length %d", len(buf))
+		err := fmt.Errorf("received malformed pieces of length %d", len(buf))
 		return nil, err
 	}
 	numHashes := len(buf) / hashLen
@@ -80,10 +89,11 @@ func (i *bencodeInfo) splitPieceHashes() ([][20]byte, error) {
 func (bto *bencodeTorrent) toTorrentFile() ([]TorrentFile, error) {
 	torrentFiles := []TorrentFile{}
 	for _, info := range bto.Info {
-		infoHash, err := info.hash()
-		if err != nil {
-			return []TorrentFile{}, err
-		}
+		// infoHash, err := info.hash()
+		// if err != nil {
+		// 	return []TorrentFile{}, err
+		// }
+		infoHash := sha1.Sum([]byte(info.Name))
 		pieceHashes, err := info.splitPieceHashes()
 		if err != nil {
 			return []TorrentFile{}, err
@@ -229,8 +239,8 @@ func Create(path []string, trackerURL string) (torrentPath string, err error) {
 	}
 	// Generate torrent file name from paths by the hash of the combined paths
 	combinedPath := strings.Join(path, "_")
-	hash := sha1.Sum([]byte(combinedPath))
-	torrentFileName := fmt.Sprintf("%x.torrent", hash)
+	hash_file_name := sha1.Sum([]byte(combinedPath))
+	torrentFileName := fmt.Sprintf("%x.torrent", hash_file_name)
 	// convert torrentFiles to bencodeTorrent
 	bto, err := toBencodeTorrent(torrentFiles)
 	if err != nil {
