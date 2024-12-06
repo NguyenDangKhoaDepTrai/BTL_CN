@@ -106,7 +106,7 @@ func main() {
 			fmt.Println("  getlistoftrackers 		- Get list of trackers connected")
 			fmt.Println("  download [torrent-file]  		- Start downloading a file from a torrent file")
 			fmt.Println("  test [ip:port]           		- Test connection to another peer")
-			fmt.Println("  create [file] [tracker-address]           		- Create a torrent file from a source file")
+			fmt.Println("  create [tracker-address] [files]         		- Create a torrent file from multiple source files")
 			//fmt.Println("  open [torrent-file]      		- Open and display torrent file contents")
 			//fmt.Println("  test-file [filename]     		- Test split and merge functionality")
 			fmt.Println("  clear                   		- Clear the terminal")
@@ -210,14 +210,14 @@ func main() {
 		//-----------------------------------------------------------------------------------------------------
 		case strings.HasPrefix(commandLine, "create"):
 			args := strings.Split(commandLine, " ")
-			if len(args) < 3 {
-				fmt.Println("Usage: create [file] [tracker-address]")
+			if len(args) <= 2 {
+				fmt.Println("Usage: create [tracker-address] [files]")
 				continue
 			}
-			sourceFile := args[1]
-			trackerAddress := args[2]
+			trackerAddress := args[1]
+			sourceFiles := args[2:]
 			trackerAddress = trackerAddress + ":8080"
-			torrentFileName, err := torrent.Create(sourceFile, trackerAddress)
+			torrentFileName, err := torrent.Create(sourceFiles, trackerAddress)
 			if err != nil {
 				fmt.Printf("Failed to create torrent file: %v\n", err)
 			} else {

@@ -40,7 +40,7 @@ func StartDownload(torrentFile string) {
 	fmt.Println("Starting download for:", torrentFile)
 
 	// Parse torrent file using the torrent package
-	tf, err := torrent.Open(torrentFile)
+	tfs, err := torrent.Open(torrentFile)
 	if err != nil {
 		fmt.Printf("Error opening torrent file: %v\n", err)
 		return
@@ -58,7 +58,8 @@ func StartDownload(torrentFile string) {
 			continue
 		}
 
-		if err := performHandshake(peer, tf.InfoHash[:]); err != nil {
+		// Use the first file's InfoHash for handshake (assuming all files share the same InfoHash)
+		if err := performHandshake(peer, tfs[0].InfoHash[:]); err != nil {
 			fmt.Printf("Handshake failed with peer %s: %v\n", peer, err)
 			continue
 		}
@@ -71,58 +72,68 @@ func StartDownload(torrentFile string) {
 		return
 	}
 
-	// Create channels for the worker pool
-	const numWorkers = 3
-	workQueue := make(chan PieceWork, len(tf.PieceHashes))
-	results := make(chan PieceResult, len(tf.PieceHashes))
+	// Process each file in the torrent
+	for _, tf := range tfs {
+		fmt.Printf("Downloading file: %s\n", tf.Name)
 
-	// Enqueue work
-	for i, hash := range tf.PieceHashes {
-		workQueue <- PieceWork{Index: i, Hash: hash[:], Size: int64(tf.PieceLength)}
-	}
-	close(workQueue) // Close after enqueuing all work
+		// Create channels for the worker pool
+		const numWorkers = 3
+		workQueue := make(chan PieceWork, len(tf.PieceHashes))
+		results := make(chan PieceResult, len(tf.PieceHashes))
 
-	// Start workers
-	var wg sync.WaitGroup
-	for i := 0; i < numWorkers; i++ {
-		wg.Add(1)
-		// Use different peers for different workers in a round-robin fashion
-		peerIndex := i % len(activePeers)
-		go func(peer string) {
-			defer wg.Done()
-			downloadWorker(peer, workQueue, results, tf.InfoHash[:])
-		}(activePeers[peerIndex])
-	}
-
-	// Wait for workers to complete
-	go func() {
-		wg.Wait()
-		close(results)
-	}()
-
-	// Collect results and merge file
-	piecesByIndex := make(map[int]string)
-	for result := range results {
-		if result.Error != nil {
-			fmt.Printf("Error downloading piece %d: %v\n", result.Index, result.Error)
-			continue
+		// Enqueue work for current file
+		for i, hash := range tf.PieceHashes {
+			workQueue <- PieceWork{
+				Index: i,
+				Hash:  hash[:],
+				Size:  int64(tf.PieceLength),
+			}
 		}
-		piecesByIndex[result.Index] = string(result.Data)
-		// Validate the piece hash
-		calculatedHash := sha1.Sum(result.Data)
-		if !bytes.Equal(calculatedHash[:], tf.PieceHashes[result.Index][:]) {
-			fmt.Printf("Piece %d hash mismatch!\n", result.Index)
+		close(workQueue)
+
+		// Start workers for current file
+		var wg sync.WaitGroup
+		for i := 0; i < numWorkers; i++ {
+			wg.Add(1)
+			peerIndex := i % len(activePeers)
+			go func(peer string) {
+				defer wg.Done()
+				downloadWorker(peer, workQueue, results, tf.InfoHash[:])
+			}(activePeers[peerIndex])
 		}
-		fmt.Printf("Successfully downloaded piece %d\n", result.Index)
+
+		// Wait for workers to complete
+		go func() {
+			wg.Wait()
+			close(results)
+		}()
+
+		// Collect results and merge file
+		piecesByIndex := make(map[int][]byte)
+		for result := range results {
+			if result.Error != nil {
+				fmt.Printf("Error downloading piece %d: %v\n", result.Index, result.Error)
+				continue
+			}
+			piecesByIndex[result.Index] = result.Data
+
+			calculatedHash := sha1.Sum(result.Data)
+			if !bytes.Equal(calculatedHash[:], tf.PieceHashes[result.Index][:]) {
+				fmt.Printf("Piece %d hash mismatch!\n", result.Index)
+			}
+			fmt.Printf("Successfully downloaded piece %d of %s\n", result.Index, tf.Name)
+		}
+
+		// Merge pieces into current file
+		if err := tf.MergePieces(tf.Name, piecesByIndex); err != nil {
+			fmt.Printf("Error merging pieces for %s: %v\n", tf.Name, err)
+			continue // Continue with next file even if current fails
+		}
+
+		fmt.Printf("Download complete for file: %s\n", tf.Name)
 	}
 
-	// Merge pieces into final file
-	if err := tf.MergePieces(tf.Name, piecesByIndex); err != nil {
-		fmt.Printf("Error merging pieces: %v\n", err)
-		return
-	}
-
-	fmt.Println("Download complete!")
+	fmt.Println("All downloads complete!")
 }
 
 func downloadWorker(peer string, work <-chan PieceWork, results chan<- PieceResult, infoHash []byte) {
@@ -208,7 +219,7 @@ func performHandshake(address string, infoHash []byte) error {
 	defer conn.Close()
 
 	// Send handshake message
-	handshakeMsg := fmt.Sprintf("HANDSHAKE:%x\n", infoHash)
+	handshakeMsg := fmt.Sprintf("HANDSHAKE:%x.torrent\n", infoHash)
 	if _, err := conn.Write([]byte(handshakeMsg)); err != nil {
 		return fmt.Errorf("failed to send handshake: %v", err)
 	}

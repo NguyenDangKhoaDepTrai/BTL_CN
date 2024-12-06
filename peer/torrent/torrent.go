@@ -30,22 +30,22 @@ type bencodeInfo struct {
 }
 
 type bencodeTorrent struct {
-	Announce string      `bencode:"announce"`
-	Info     bencodeInfo `bencode:"info"`
+	Announce string        `bencode:"announce"`
+	Info     []bencodeInfo `bencode:"info"`
 }
 
 // Open parses a torrent file
-func Open(path string) (TorrentFile, error) {
+func Open(path string) ([]TorrentFile, error) {
 	file, err := os.Open(path)
 	if err != nil {
-		return TorrentFile{}, err
+		return []TorrentFile{}, err
 	}
 	defer file.Close()
 
 	bto := bencodeTorrent{}
 	err = bencode.Unmarshal(file, &bto)
 	if err != nil {
-		return TorrentFile{}, err
+		return []TorrentFile{}, err
 	}
 	fmt.Println(bto.toTorrentFile())
 	return bto.toTorrentFile()
@@ -77,24 +77,54 @@ func (i *bencodeInfo) splitPieceHashes() ([][20]byte, error) {
 	return hashes, nil
 }
 
-func (bto *bencodeTorrent) toTorrentFile() (TorrentFile, error) {
-	infoHash, err := bto.Info.hash()
-	if err != nil {
-		return TorrentFile{}, err
+func (bto *bencodeTorrent) toTorrentFile() ([]TorrentFile, error) {
+	torrentFiles := []TorrentFile{}
+	for _, info := range bto.Info {
+		infoHash, err := info.hash()
+		if err != nil {
+			return []TorrentFile{}, err
+		}
+		pieceHashes, err := info.splitPieceHashes()
+		if err != nil {
+			return []TorrentFile{}, err
+		}
+		t := TorrentFile{
+			Announce:    bto.Announce,
+			InfoHash:    infoHash,
+			PieceHashes: pieceHashes,
+			PieceLength: info.PieceLength,
+			Length:      info.Length,
+			Name:        info.Name,
+		}
+		torrentFiles = append(torrentFiles, t)
 	}
-	pieceHashes, err := bto.Info.splitPieceHashes()
-	if err != nil {
-		return TorrentFile{}, err
+	return torrentFiles, nil
+}
+
+// []TorrentFile to bencodeTorrent
+func toBencodeTorrent(t []TorrentFile) (bencodeTorrent, error) {
+	bto := bencodeTorrent{
+		Announce: t[0].Announce,
 	}
-	t := TorrentFile{
-		Announce:    bto.Announce,
-		InfoHash:    infoHash,
-		PieceHashes: pieceHashes,
-		PieceLength: bto.Info.PieceLength,
-		Length:      bto.Info.Length,
-		Name:        bto.Info.Name,
+	for _, torrentFile := range t {
+		bto.Info = append(bto.Info, torrentFile.toBencodeInfo())
 	}
-	return t, nil
+	return bto, nil
+}
+
+func (t *TorrentFile) toBencodeInfo() bencodeInfo {
+	// Concatenate all piece hashes into a single byte slice
+	var pieces []byte
+	for _, hash := range t.PieceHashes {
+		pieces = append(pieces, hash[:]...)
+	}
+
+	return bencodeInfo{
+		Pieces:      string(pieces),
+		PieceLength: t.PieceLength,
+		Length:      t.Length,
+		Name:        t.Name,
+	}
 }
 
 // splitFileIntoPieces reads a file and splits it into pieces of the given length.
@@ -117,168 +147,50 @@ func splitFileIntoPieces(file *os.File, pieceLength int) ([][]byte, error) {
 }
 
 // CreateTorrent builds a TorrentFile from a file path and tracker URL
-func CreateTorrent(path string, trackerAddress string) (TorrentFile, error) {
-	file, err := os.Open(path)
-	if err != nil {
-		return TorrentFile{}, err
-	}
-	defer file.Close()
+func CreateTorrent(paths []string, trackerURL string) ([]TorrentFile, error) {
+	torrentFiles := []TorrentFile{}
+	for _, path := range paths {
+		pieceLength := 256 * 1024 // 256 KB
+		file, err := os.Open(path)
+		if err != nil {
+			return []TorrentFile{}, err
+		}
+		defer file.Close()
 
-	fileInfo, err := file.Stat()
-	if err != nil {
-		return TorrentFile{}, err
-	}
+		fileInfo, err := file.Stat()
+		if err != nil {
+			return nil, err
+		}
+		// Hash the file stat
+		infoHash := sha1.Sum([]byte(fileInfo.Name()))
 
-	// Create bencode structs
-	bto := bencodeTorrent{
-		Announce: trackerAddress,
-		Info: bencodeInfo{
-			PieceLength: 262144, // Standard piece length of 256KB
-			Name:        fileInfo.Name(),
+		// Use the new function to split the file into pieces
+		pieces, err := splitFileIntoPieces(file, pieceLength)
+		if err != nil {
+			return nil, err
+		}
+
+		// Calculate pieces hashes
+		var piecesHashes [][20]byte
+		for _, piece := range pieces {
+			hash := sha1.Sum(piece)
+			piecesHashes = append(piecesHashes, hash)
+		}
+
+		// Create torrent file from the data above
+		torrentFile := TorrentFile{
+			Announce:    trackerURL,
+			InfoHash:    infoHash,
+			PieceHashes: piecesHashes,
+			PieceLength: pieceLength,
 			Length:      int(fileInfo.Size()),
-		},
-	}
-
-	// Use the new function to split the file into pieces
-	pieces, err := splitFileIntoPieces(file, bto.Info.PieceLength)
-	if err != nil {
-		return TorrentFile{}, err
-	}
-
-	// Calculate pieces hashes
-	var piecesHashes []byte
-	for _, piece := range pieces {
-		hash := sha1.Sum(piece)
-		piecesHashes = append(piecesHashes, hash[:]...)
-	}
-	bto.Info.Pieces = string(piecesHashes)
-	return bto.toTorrentFile()
-}
-
-// Create saves a TorrentFile as a .torrent file
-func (t *TorrentFile) createTorrentFile(path string) error {
-	file, err := os.Create(path)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-
-	bto := bencodeTorrent{
-		Announce: t.Announce,
-		Info: bencodeInfo{
-			Pieces: string(bytes.Join(func() [][]byte {
-				pieces := make([][]byte, len(t.PieceHashes))
-				for i := range t.PieceHashes {
-					pieces[i] = t.PieceHashes[i][:]
-				}
-				return pieces
-			}(), []byte{})),
-			PieceLength: t.PieceLength,
-			Length:      t.Length,
-			Name:        t.Name,
-		},
-	}
-
-	return bencode.Marshal(file, bto)
-}
-
-func Create(path string, trackerAddress string) (torrentPath string, err error) {
-	torrentFile, err := CreateTorrent(path, trackerAddress)
-
-	if err != nil {
-		return "", err
-	}
-	// ---------------------------------------- Tạo file json ----------------------------------------
-	torrentFileName := fmt.Sprintf("%s.torrent", path) // Tên file torrent = tên file source + .torrent
-	err = torrentFile.createTorrentFile(torrentFileName)
-	if err != nil {
-		return "", err
-	}
-	torrentInfo := map[string]string{
-		"FilePath": path,
-		"FileName": torrentFile.Name,
-		"InfoHash": fmt.Sprintf("%x", torrentFile.InfoHash),
-		// Print the list of piece hashes
-		"PieceHashes": fmt.Sprintf("%x", torrentFile.PieceHashes),
-	}
-	jsonData, err := json.Marshal(torrentInfo)
-	if err != nil {
-		return "", err
-	}
-	err = os.WriteFile("torrent_info.json", jsonData, 0644)
-	if err != nil {
-		return "", err
-	}
-	return torrentFileName, nil
-}
-
-func (t *TorrentFile) ReadPiece(index int) ([]byte, error) {
-	// Validate piece index
-	if index < 0 || index >= len(t.PieceHashes) {
-		return nil, fmt.Errorf("invalid piece index %d", index)
-	}
-
-	// Open the underlying file
-	file, err := os.Open(t.Name)
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-
-	// Calculate piece size and offset
-	pieceOffset := int64(index * t.PieceLength)
-	pieceSize := t.PieceLength
-
-	// Handle last piece, which might be smaller
-	if index == len(t.PieceHashes)-1 {
-		lastPieceSize := t.Length - (index * t.PieceLength)
-		if lastPieceSize < pieceSize {
-			pieceSize = lastPieceSize
+			Name:        fileInfo.Name(),
 		}
+
+		torrentFiles = append(torrentFiles, torrentFile)
 	}
 
-	// Seek to the piece location
-	_, err = file.Seek(pieceOffset, io.SeekStart)
-	if err != nil {
-		return nil, err
-	}
-
-	// Read the piece
-	piece := make([]byte, pieceSize)
-	n, err := io.ReadFull(file, piece)
-	if err != nil && err != io.EOF && err != io.ErrUnexpectedEOF {
-		return nil, err
-	}
-
-	// Verify piece hash
-	hash := sha1.Sum(piece[:n])
-	if !bytes.Equal(hash[:], t.PieceHashes[index][:]) {
-		return nil, fmt.Errorf("piece %d failed hash verification", index)
-	}
-
-	return piece[:n], nil
-}
-
-// MergePieces combines pieces into a single file
-func (t *TorrentFile) MergePieces(outputPath string, pieces map[int]string) error {
-	file, err := os.Create(outputPath)
-	if err != nil {
-		return fmt.Errorf("failed to create file: %v", err)
-	}
-	defer file.Close()
-
-	// Write pieces in order
-	for i := 0; i < len(t.PieceHashes); i++ {
-		data, exists := pieces[i]
-		if !exists {
-			return fmt.Errorf("missing piece %d", i)
-		}
-		if _, err := file.WriteString(data); err != nil {
-			return fmt.Errorf("failed to write piece %d: %v", i, err)
-		}
-	}
-
-	return nil
+	return torrentFiles, nil
 }
 
 // StreamFilePieces streams file pieces to a client without hashing
@@ -293,42 +205,77 @@ func StreamFilePieces(filePath string, pieceLength int) ([][]byte, error) {
 	return splitFileIntoPieces(file, pieceLength)
 }
 
-// TestSplitAndMerge tests the split and merge functionality
-func TestSplitAndMerge(filepath string) error {
-	// Create a temporary torrent file structure
-	t := &TorrentFile{
-		PieceLength: 256 * 1024, // 256KB pieces
-		Name:        filepath,
-	}
-
-	// Use StreamFilePieces to split the file
-	pieceBytes, err := StreamFilePieces(filepath, t.PieceLength)
+// Create saves a TorrentFile as a .torrent file
+func (t bencodeTorrent) createTorrentFile(path string) error {
+	fmt.Println("Creating torrent file:", t)
+	file, err := os.Create(path)
 	if err != nil {
-		return fmt.Errorf("failed to split file: %v", err)
+		return err
+	}
+	defer file.Close()
+
+	err = bencode.Marshal(file, t)
+	if err != nil {
+		return err
 	}
 
-	// Convert pieces to map and calculate hashes
-	pieces := make(map[int]string)
-	for i, piece := range pieceBytes {
-		pieces[i] = string(piece)
-		pieceHash := sha1.Sum(piece)
-		t.PieceHashes = append(t.PieceHashes, pieceHash)
-	}
+	return nil
+}
 
-	// Get extension by splitting on dots and taking the last part
-	parts := strings.Split(filepath, ".")
-	var ext string
-	if len(parts) > 1 {
-		ext = "." + parts[len(parts)-1]
+func Create(path []string, trackerURL string) (torrentPath string, err error) {
+	torrentFiles, err := CreateTorrent(path, trackerURL)
+	if err != nil {
+		return "", err
 	}
-	baseName := strings.TrimSuffix(filepath, ext)
-	outputPath := baseName + "-test" + ext
-
-	// Merge pieces back
-	if err := t.MergePieces(outputPath, pieces); err != nil {
-		return fmt.Errorf("merge failed: %v", err)
+	// Generate torrent file name from paths by the hash of the combined paths
+	combinedPath := strings.Join(path, "_")
+	hash := sha1.Sum([]byte(combinedPath))
+	torrentFileName := fmt.Sprintf("%x.torrent", hash)
+	// convert torrentFiles to bencodeTorrent
+	bto, err := toBencodeTorrent(torrentFiles)
+	if err != nil {
+		return "", err
 	}
+	err = bto.createTorrentFile(torrentFileName)
+	if err != nil {
+		return "", err
+	}
+	for _, torrentFile := range torrentFiles {
+		torrentInfo := map[string]string{
+			"FilePath": path[0],
+			"FileName": torrentFile.Name,
+			"InfoHash": fmt.Sprintf("%x", torrentFile.InfoHash),
+		}
+		jsonData, err := json.Marshal(torrentInfo)
+		if err != nil {
+			return "", err
+		}
+		err = os.WriteFile("torrent_info.json", jsonData, 0644) // insert jsonData into torrent_info.json
+		if err != nil {
+			return "", err
+		}
 
-	fmt.Printf("Successfully split and merged file:\nOriginal: %s\nNew: %s\n", filepath, outputPath)
+	}
+	return torrentFileName, nil
+}
+
+// MergePieces combines pieces into a single file
+func (t *TorrentFile) MergePieces(outputPath string, pieces map[int][]byte) error {
+	file, err := os.Create(outputPath)
+	if err != nil {
+		return fmt.Errorf("failed to create file: %v", err)
+	}
+	defer file.Close()
+
+	// Write pieces in order
+	for i := 0; i < len(t.PieceHashes); i++ {
+		data, exists := pieces[i]
+		if !exists {
+			return fmt.Errorf("missing piece %d", i)
+		}
+		if _, err := file.Write(data); err != nil {
+			return fmt.Errorf("failed to write piece %d: %v", i, err)
+		}
+	}
 	return nil
 }
