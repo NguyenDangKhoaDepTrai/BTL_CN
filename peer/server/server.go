@@ -161,7 +161,7 @@ func handleHandshake(conn net.Conn, message string) (string, *FileWorker) {
 	}
 	found := false
 	for _, file := range torrentFiles {
-		if file == torrent_file_name {
+		if strings.TrimSuffix(file, ".torrent") == torrent_file_name {
 			found = true
 			break
 		}
@@ -172,12 +172,11 @@ func handleHandshake(conn net.Conn, message string) (string, *FileWorker) {
 	}
 
 	// Create worker for the file
-	tf, err := ParseTorrentFile(torrent_file_name)
+	tf, err := ParseTorrentFile(torrent_file_name + ".torrent")
 	if err != nil {
 		fmt.Printf("Error parsing torrent file: %v\n", err)
 	}
-	fmt.Printf("CCCCCc file name: %v\n", tf.Name)
-	fileName := "files/demo.pdf"
+	fileName := "files/" + tf.Name
 	worker, err := NewFileWorker(fileName)
 	if err != nil {
 		fmt.Printf("Error creating file worker: %v\n", err)
