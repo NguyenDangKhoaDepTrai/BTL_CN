@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"crypto/sha1"
 	"encoding/binary"
-	"encoding/json"
 	"fmt"
 	"net"
 	"os"
@@ -100,6 +99,7 @@ func handleConnection(conn net.Conn) {
 			fmt.Printf("Received test message: %s\n", message)
 			conn.Write([]byte("OK\n"))
 		case strings.HasPrefix(message, "HANDSHAKE:"):
+
 			infoHash, worker := handleHandshake(conn, message)
 			if worker == nil {
 				return
@@ -125,29 +125,45 @@ func handleConnection(conn net.Conn) {
 	}
 }
 
+// ListTorrentFiles returns a list of all .torrent files in the torrent_files directory
+func ListTorrentFiles() ([]string, error) {
+	files, err := os.ReadDir("torrent_files")
+	if err != nil {
+		return nil, fmt.Errorf("failed to read torrent_files directory: %v", err)
+	}
+
+	var torrentFiles []string
+	for _, file := range files {
+		if strings.HasSuffix(file.Name(), ".torrent") {
+			torrentFiles = append(torrentFiles, file.Name())
+		}
+	}
+	return torrentFiles, nil
+}
+
 func handleHandshake(conn net.Conn, message string) (string, *FileWorker) {
 	// Get the info hash from the message
 	infoHashMessage := strings.TrimPrefix(message, "HANDSHAKE:")
-	// Check if the info hash is in the torrent_info.json file
-	torrentInfo, err := os.ReadFile("torrent_info.json")
+	//Check if the infohash is in the list of torrent files
+	torrentFiles, err := ListTorrentFiles()
 	if err != nil {
-		fmt.Printf("Error reading torrent_info.json: %v\n", err)
+		fmt.Printf("Error listing torrent files: %v\n", err)
 		return "", nil
 	}
-	var torrentInfoMap map[string]string
-	err = json.Unmarshal(torrentInfo, &torrentInfoMap)
-	if err != nil {
-		fmt.Printf("Error unmarshalling torrent_info.json: %v\n", err)
+	found := false
+	for _, file := range torrentFiles {
+		if file == infoHashMessage {
+			found = true
+			break
+		}
+	}
+	if !found {
+		fmt.Printf("This torrent file is not in the list of torrent files currently available\n")
 		return "", nil
 	}
-	infoHash := torrentInfoMap["InfoHash"]
-	if infoHash != infoHashMessage {
-		fmt.Printf("Info hash mismatch: %s != %s\n", infoHash, infoHashMessage)
-		return "", nil
-	}
-	filePath := torrentInfoMap["FilePath"]
 	// Create worker for the file
-	worker, err := NewFileWorker(filePath)
+	fileName := "files/demo.pdf"
+	worker, err := NewFileWorker(fileName)
 	if err != nil {
 		fmt.Printf("Error creating file worker: %v\n", err)
 		conn.Write([]byte("ERROR: Unable to process file\n"))
@@ -155,7 +171,7 @@ func handleHandshake(conn net.Conn, message string) (string, *FileWorker) {
 	}
 
 	conn.Write([]byte("OK\n"))
-	return infoHash, worker
+	return infoHashMessage, worker
 }
 
 func handlePieceRequest(conn net.Conn, message string, worker *FileWorker) {

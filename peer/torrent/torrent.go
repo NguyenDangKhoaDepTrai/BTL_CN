@@ -161,7 +161,7 @@ func CreateTorrent(paths []string, trackerURL string) ([]TorrentFile, error) {
 	torrentFiles := []TorrentFile{}
 	for _, path := range paths {
 		pieceLength := 256 * 1024 // 256 KB
-		file, err := os.Open(path)
+		file, err := os.Open("files/" + path)
 		if err != nil {
 			return []TorrentFile{}, err
 		}
@@ -218,7 +218,7 @@ func StreamFilePieces(filePath string, pieceLength int) ([][]byte, error) {
 // Create saves a TorrentFile as a .torrent file
 func (t bencodeTorrent) createTorrentFile(path string) error {
 	//fmt.Println("Creating torrent file:", t)
-	file, err := os.Create(path)
+	file, err := os.Create("torrent_files/" + path)
 	if err != nil {
 		return err
 	}
@@ -238,7 +238,8 @@ func Create(path []string, trackerURL string) (torrentPath string, err error) {
 		return "", err
 	}
 	// Generate torrent file name from paths by the hash of the combined paths
-	combinedPath := strings.Join(path, "_")
+	combinedPath := strings.Join(path, ",")
+	//fmt.Printf("combinedPath: %s\n", combinedPath)
 	hash_file_name := sha1.Sum([]byte(combinedPath))
 	torrentFileName := fmt.Sprintf("%x.torrent", hash_file_name)
 	// convert torrentFiles to bencodeTorrent
@@ -250,28 +251,47 @@ func Create(path []string, trackerURL string) (torrentPath string, err error) {
 	if err != nil {
 		return "", err
 	}
-	for _, torrentFile := range torrentFiles {
-		torrentInfo := map[string]string{
-			"FilePath": path[0],
-			"FileName": torrentFile.Name,
-			"InfoHash": fmt.Sprintf("%x", torrentFile.InfoHash),
-		}
-		jsonData, err := json.Marshal(torrentInfo)
-		if err != nil {
-			return "", err
-		}
-		err = os.WriteFile("torrent_info.json", jsonData, 0644) // insert jsonData into torrent_info.json
-		if err != nil {
-			return "", err
-		}
 
+	// Create torrent_info.json
+	torrentInfo := map[string]string{
+		"InfoHash": torrentFileName,
 	}
+	jsonData, err := json.Marshal(torrentInfo)
+	if err != nil {
+		return "", err
+	}
+	err = os.WriteFile("torrent_info.json", jsonData, 0644) // insert jsonData into torrent_info.json
+	if err != nil {
+		return "", err
+	}
+	// files, err := ListTorrentFiles()
+	// if err != nil {
+	// 	return "", err
+	// }
+	// for _, file := range files {
+	// 	fmt.Println(file)
+	// }
 	return torrentFileName, nil
+}
+
+func ListTorrentFiles() ([]string, error) {
+	files, err := os.ReadDir("torrent_files")
+	if err != nil {
+		return nil, fmt.Errorf("failed to read torrent_files directory: %v", err)
+	}
+
+	var torrentFiles []string
+	for _, file := range files {
+		if strings.HasSuffix(file.Name(), ".torrent") {
+			torrentFiles = append(torrentFiles, file.Name())
+		}
+	}
+	return torrentFiles, nil
 }
 
 // MergePieces combines pieces into a single file
 func (t *TorrentFile) MergePieces(outputPath string, pieces map[int][]byte) error {
-	file, err := os.Create(outputPath)
+	file, err := os.Create("files/" + outputPath)
 	if err != nil {
 		return fmt.Errorf("failed to create file: %v", err)
 	}

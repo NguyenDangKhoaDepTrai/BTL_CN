@@ -40,14 +40,14 @@ func StartDownload(torrentFile string) {
 	fmt.Println("Starting download for:", torrentFile)
 
 	// Parse torrent file using the torrent package
-	tfs, err := torrent.Open(torrentFile)
+	tfs, err := torrent.Open("torrent_files/" + torrentFile)
 	if err != nil {
 		fmt.Printf("Error opening torrent file: %v\n", err)
 		return
 	}
 
 	// Mock the list of peers
-	peers := []string{"192.168.101.98:8080"}
+	peers := []string{"192.168.101.92:8080"}
 
 	// First, test connection and handshake with peers
 	var activePeers []string
@@ -64,7 +64,6 @@ func StartDownload(torrentFile string) {
 			fmt.Printf("Handshake failed with peer %s: %v\n", peer, err)
 			continue
 		}
-
 		activePeers = append(activePeers, peer)
 	}
 
