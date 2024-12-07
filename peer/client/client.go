@@ -310,32 +310,6 @@ func ConnectToTracker(trackerAddress string, peerAddress string, filename string
 	}
 	return nil
 }
-func DisconnectToTrackerForAFile(trackerAddress string, peerAddress string, filename string) error {
-	conn, err := net.Dial("tcp", trackerAddress)
-	if err != nil {
-		return fmt.Errorf("connection failed: %v", err)
-	}
-	defer conn.Close()
-
-	// Tạo message để gửi
-	// Format: STOPONE:{peerAddress}:{fileName}
-	message := fmt.Sprintf("STOPONE:%s:%s", peerAddress, filename)
-
-	// Gửi message đến tracker
-	if _, err := conn.Write([]byte(message)); err != nil {
-		return fmt.Errorf("failed to send data: %v", err)
-	}
-
-	// Đọc phản hồi từ tracker
-	// reader := bufio.NewReader(conn)
-	// response, err := reader.ReadString('!')
-	// if err != nil {
-	// 	return fmt.Errorf("failed to read tracker response: %v", err)
-	// }
-
-	// fmt.Printf("---------------------------------\nTracker response: %s", response)
-	return nil
-}
 
 func GetListOfPeersForAFile(trackerAddress string, filename string) error {
 	conn, err := net.Dial("tcp", trackerAddress)
@@ -365,30 +339,23 @@ func GetListOfPeersForAFile(trackerAddress string, filename string) error {
 	return nil
 }
 
-func DisconnectToTracker(trackerAddress string, peerAddress string) error {
-	conn, err := net.Dial("tcp", trackerAddress)
-	if err != nil {
-		return fmt.Errorf("connection failed: %v", err)
+func DisconnectToTracker(peerAddress string) error {
+	for _, tracker := range connectedTrackerAddresses {
+		conn, err := net.Dial("tcp", tracker.Addr)
+		if err != nil {
+			return fmt.Errorf("connection failed: %v", err)
+		}
+		defer conn.Close()
+
+		// Tạo message để gửi
+		// Format: STOP:{peerAddress}
+		message := fmt.Sprintf("STOP:%s", peerAddress)
+
+		// Gửi message đến tracker
+		if _, err := conn.Write([]byte(message)); err != nil {
+			return fmt.Errorf("failed to send data: %v", err)
+		}
 	}
-	defer conn.Close()
-
-	// Tạo message để gửi
-	// Format: STOP:{peerAddress}
-	message := fmt.Sprintf("STOP:%s", peerAddress)
-
-	// Gửi message đến tracker
-	if _, err := conn.Write([]byte(message)); err != nil {
-		return fmt.Errorf("failed to send data: %v", err)
-	}
-
-	// Đọc phản hồi từ tracker
-	// reader := bufio.NewReader(conn)
-	// response, err := reader.ReadString('!')
-	// if err != nil {
-	// 	return fmt.Errorf("failed to read tracker response: %v", err)
-	// }
-
-	// fmt.Printf("---------------------------------\nTracker response: %s", response)
 	return nil
 }
 func GetListOfTrackers() []AddrAndFilename {
