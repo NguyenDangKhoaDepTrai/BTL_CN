@@ -141,13 +141,13 @@ func ListTorrentFiles() ([]string, error) {
 	return torrentFiles, nil
 }
 
-func ParseTorrentFile(torrent_file_name string) (*torrent.TorrentFile, error) {
+func ParseTorrentFile(torrent_file_name string) ([]torrent.TorrentFile, error) {
 	torrentPath := "torrent_files/" + torrent_file_name
 	tfs, err := torrent.Open(torrentPath)
 	if err != nil {
 		return nil, fmt.Errorf("error opening torrent file: %v", err)
 	}
-	return &tfs[0], nil
+	return tfs, nil
 }
 
 func handleHandshake(conn net.Conn, message string) (string, *FileWorker) {
@@ -172,11 +172,14 @@ func handleHandshake(conn net.Conn, message string) (string, *FileWorker) {
 	}
 
 	// Create worker for the file
-	tf, err := ParseTorrentFile(torrent_file_name + ".torrent")
+	tfs, err := ParseTorrentFile(torrent_file_name + ".torrent")
 	if err != nil {
 		fmt.Printf("Error parsing torrent file: %v\n", err)
 	}
-	fileName := "files/" + tf.Name
+	for _, tf := range tfs {
+		fmt.Printf("tf.Name: %v\n", tf.Name)
+	}
+	fileName := "files/" + tfs[0].Name
 	worker, err := NewFileWorker(fileName)
 	if err != nil {
 		fmt.Printf("Error creating file worker: %v\n", err)

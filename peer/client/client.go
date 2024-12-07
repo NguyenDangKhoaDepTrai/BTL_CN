@@ -5,16 +5,21 @@ import (
 	"bytes"
 	"crypto/sha1"
 	"encoding/binary"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net"
-	"os"
 	"sync"
 	"time"
 
 	"tcp-app/torrent"
 )
+
+type AddrAndFilename struct {
+	Addr     string
+	Filename string
+}
+
+var connectedTrackerAddresses []AddrAndFilename
 
 type PieceWork struct {
 	Index int
@@ -36,7 +41,7 @@ type TorrentInfo struct {
 	PieceHashes string `json:"PieceHashes"`
 }
 
-func StartDownload(torrentFile string) {
+func StartDownload(torrentFile string, anotherPeerAddress []string, peerAddress string) {
 	fmt.Println("Starting download for:", torrentFile)
 
 	// Parse torrent file using the torrent package
@@ -47,7 +52,8 @@ func StartDownload(torrentFile string) {
 	}
 
 	// Mock the list of peers
-	peers := []string{"192.168.101.92:8080"}
+	//peers := []string{"192.168.101.92:8080"}
+	peers := anotherPeerAddress
 
 	// First, test connection and handshake with peers
 	var activePeers []string
@@ -131,6 +137,23 @@ func StartDownload(torrentFile string) {
 		}
 
 		fmt.Printf("Download complete for file: %s\n", tf.Name)
+		trackerAddress := tf.Announce
+		torrent.Create([]string{tf.Name}, trackerAddress)
+
+		err = ConnectToTracker(trackerAddress, peerAddress, tf.Name)
+		if err != nil {
+			fmt.Printf("Failed to connect to tracker: %v\n", err)
+		}
+		exist := false
+		for _, tracker := range connectedTrackerAddresses {
+			if tracker.Addr == trackerAddress && tracker.Filename == tf.Name {
+				exist = true
+				break
+			}
+		}
+		if !exist {
+			connectedTrackerAddresses = append(connectedTrackerAddresses, AddrAndFilename{Addr: trackerAddress, Filename: tf.Name})
+		}
 	}
 
 	fmt.Println("All downloads complete!")
@@ -237,6 +260,36 @@ func performHandshake(address string, infoHash []byte) error {
 
 	return nil
 }
+func AnnounceToTracker(peerAddress string, torrentFilename string) error {
+	tfs, err := torrent.Open("torrent_files/" + torrentFilename)
+	if err != nil {
+		fmt.Printf("Error opening torrent file: %v\n", err)
+		return err
+	}
+	trackerAddress := ""
+	filename := ""
+	for _, tf := range tfs {
+		trackerAddress = tf.Announce
+		filename = tf.Name
+		err := ConnectToTracker(trackerAddress, peerAddress, filename)
+		if err != nil {
+			fmt.Printf("Failed to connect to tracker %s for file %s: (error %v)\n", trackerAddress, filename, err)
+			return err
+		}
+		exist := false
+		for _, tracker := range connectedTrackerAddresses {
+			if tracker.Addr == trackerAddress && tracker.Filename == filename {
+				fmt.Println("You are already connected to this tracker for this file")
+				exist = true
+				break
+			}
+		}
+		if !exist {
+			connectedTrackerAddresses = append(connectedTrackerAddresses, AddrAndFilename{Addr: trackerAddress, Filename: filename})
+		}
+	}
+	return nil
+}
 
 func ConnectToTracker(trackerAddress string, peerAddress string, filename string) error {
 	conn, err := net.Dial("tcp", trackerAddress)
@@ -245,18 +298,7 @@ func ConnectToTracker(trackerAddress string, peerAddress string, filename string
 	}
 	defer conn.Close()
 
-	fmt.Println("Connected to tracker")
-
-	// Đọc và parse file JSON
-	jsonData, err := os.ReadFile("torrent_info.json")
-	if err != nil {
-		return fmt.Errorf("failed to read JSON file: %v", err)
-	}
-
-	var torrentInfo TorrentInfo
-	if err := json.Unmarshal(jsonData, &torrentInfo); err != nil {
-		return fmt.Errorf("failed to parse JSON: %v", err)
-	}
+	fmt.Printf("Connected to tracker %s for file %s\n", trackerAddress, filename)
 
 	// Tạo message để gửi
 	// Format: START:{peerAddress}:{fileName}
@@ -266,15 +308,6 @@ func ConnectToTracker(trackerAddress string, peerAddress string, filename string
 	if _, err := conn.Write([]byte(message)); err != nil {
 		return fmt.Errorf("failed to send data: %v", err)
 	}
-
-	// Đọc phản hồi từ tracker
-	// reader := bufio.NewReader(conn)
-	// response, err := reader.ReadString('!')
-	// if err != nil {
-	// 	return fmt.Errorf("failed to read tracker response: %v", err)
-	// }
-
-	// fmt.Printf("---------------------------------\nTracker response: %s", response)
 	return nil
 }
 func DisconnectToTrackerForAFile(trackerAddress string, peerAddress string, filename string) error {
@@ -304,7 +337,7 @@ func DisconnectToTrackerForAFile(trackerAddress string, peerAddress string, file
 	return nil
 }
 
-func GetListOfPeersForAFile(trackerAddress string, peerAddress string, filename string) error {
+func GetListOfPeersForAFile(trackerAddress string, filename string) error {
 	conn, err := net.Dial("tcp", trackerAddress)
 	if err != nil {
 		return fmt.Errorf("connection failed: %v", err)
@@ -357,4 +390,7 @@ func DisconnectToTracker(trackerAddress string, peerAddress string) error {
 
 	// fmt.Printf("---------------------------------\nTracker response: %s", response)
 	return nil
+}
+func GetListOfTrackers() []AddrAndFilename {
+	return connectedTrackerAddresses
 }

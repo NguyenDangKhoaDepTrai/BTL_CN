@@ -2,7 +2,6 @@ package torrent
 
 import (
 	"crypto/sha1"
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -51,12 +50,12 @@ func Open(path string) ([]TorrentFile, error) {
 	if err != nil {
 		return []TorrentFile{}, err
 	}
-	fmt.Printf("bto.toTorrentFile()[0].Announce: %v\n", torrentFiles[0].Announce)
-	fmt.Printf("bto.toTorrentFile()[0].InfoHash: %x\n", torrentFiles[0].InfoHash)
-	fmt.Printf("bto.toTorrentFile()[0].PieceHashes: %v\n", torrentFiles[0].PieceHashes)
-	fmt.Printf("bto.toTorrentFile()[0].PieceLength: %d\n", torrentFiles[0].PieceLength)
-	fmt.Printf("bto.toTorrentFile()[0].Length: %d\n", torrentFiles[0].Length)
-	fmt.Printf("bto.toTorrentFile()[0].Name: %s\n", torrentFiles[0].Name)
+	// fmt.Printf("bto.toTorrentFile()[0].Announce: %v\n", torrentFiles[0].Announce)
+	// fmt.Printf("bto.toTorrentFile()[0].InfoHash: %x\n", torrentFiles[0].InfoHash)
+	// fmt.Printf("bto.toTorrentFile()[0].PieceHashes: %v\n", torrentFiles[0].PieceHashes)
+	// fmt.Printf("bto.toTorrentFile()[0].PieceLength: %d\n", torrentFiles[0].PieceLength)
+	// fmt.Printf("bto.toTorrentFile()[0].Length: %d\n", torrentFiles[0].Length)
+	// fmt.Printf("bto.toTorrentFile()[0].Name: %s\n", torrentFiles[0].Name)
 	return torrentFiles, nil
 }
 
@@ -253,17 +252,17 @@ func Create(path []string, trackerURL string) (torrentPath string, err error) {
 	}
 
 	// Create torrent_info.json
-	torrentInfo := map[string]string{
-		"InfoHash": torrentFileName,
-	}
-	jsonData, err := json.Marshal(torrentInfo)
-	if err != nil {
-		return "", err
-	}
-	err = os.WriteFile("torrent_info.json", jsonData, 0644) // insert jsonData into torrent_info.json
-	if err != nil {
-		return "", err
-	}
+	// torrentInfo := map[string]string{
+	// 	"InfoHash": torrentFileName,
+	// }
+	// jsonData, err := json.Marshal(torrentInfo)
+	// if err != nil {
+	// 	return "", err
+	// }
+	// err = os.WriteFile("torrent_info.json", jsonData, 0644) // insert jsonData into torrent_info.json
+	// if err != nil {
+	// 	return "", err
+	// }
 	// files, err := ListTorrentFiles()
 	// if err != nil {
 	// 	return "", err
