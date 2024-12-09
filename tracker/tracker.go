@@ -133,7 +133,7 @@ func main() {
 	var trackerAddress string
 	fmt.Print("Enter your tracker address (e.g., 192.168.101.11): ")
 	fmt.Scanln(&trackerAddress)
-	trackerAddress = trackerAddress + ":8080"
+	trackerAddress = trackerAddress + ":8081"
 	// Khởi tạo server
 	listener, err := net.Listen("tcp", trackerAddress)
 	if err != nil {
