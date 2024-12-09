@@ -47,7 +47,7 @@ func main() {
 			fmt.Println("  getlistofpeers [one torrent-file] 							- Get list of peers for a specific torrent file")
 			fmt.Println("  getlistoftrackers 											- Get list of trackers connected")
 			fmt.Println("  download [torrent-file] [another-peer-address]  				- Start downloading a file from a torrent file")
-			fmt.Println("  test [ip:port]           									- Test connection to another peer")
+			fmt.Println("  test [peer-address]           								- Test connection to another peer")
 			fmt.Println("  create [tracker-address] [files]         					- Create a torrent file from multiple source files")
 			fmt.Println("  clear                   										- Clear the terminal")
 			fmt.Println("  exit                    										- Exit the program")
@@ -106,7 +106,7 @@ func main() {
 			}
 			trackerAddress := args[1]
 			sourceFiles := args[2:]
-			trackerAddress = trackerAddress + ":8080"
+			trackerAddress = trackerAddress + ":8081"
 			torrentFileName, err := torrent.Create(sourceFiles, trackerAddress)
 			if err != nil {
 				fmt.Printf("Failed to create torrent file: %v\n", err)
