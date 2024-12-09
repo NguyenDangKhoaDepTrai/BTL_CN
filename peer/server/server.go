@@ -177,7 +177,7 @@ func handleHandshake(conn net.Conn, message string) (string, *FileWorker) {
 		fmt.Printf("Error parsing torrent file: %v\n", err)
 	}
 	for _, tf := range tfs {
-		fmt.Printf("tf.Name: %v\n", tf.Name)
+		fmt.Printf("Downloading file: %v\n", tf.Name)
 	}
 	fileName := "files/" + tfs[0].Name
 	worker, err := NewFileWorker(fileName)
