@@ -57,7 +57,6 @@ func StartDownload(torrentFile string, anotherPeerAddress []string, peerAddress 
 	// First, test connection and handshake with peers
 	var activePeers []string
 	for _, peer := range peers {
-		peer = peer
 		fmt.Printf("Testing connection to peer: %s\n", peer)
 		err := TestConnection(peer)
 		if err != nil {

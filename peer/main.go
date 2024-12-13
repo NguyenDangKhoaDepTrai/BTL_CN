@@ -106,7 +106,6 @@ func main() {
 			}
 			trackerAddress := args[1]
 			sourceFiles := args[2:]
-			trackerAddress = trackerAddress + ":8081"
 			torrentFileName, err := torrent.Create(sourceFiles, trackerAddress)
 			if err != nil {
 				fmt.Printf("Failed to create torrent file: %v\n", err)
@@ -131,7 +130,6 @@ func main() {
 				continue
 			}
 			peerAddress := args[1]
-			peerAddress = peerAddress
 			if err := client.TestConnection(peerAddress); err != nil {
 				fmt.Printf("Connection failed: %v\n", err)
 			} else {
