@@ -26,7 +26,7 @@ func main() {
 	fmt.Print("Enter your peer address (e.g., 192.168.101.92): ")
 	fmt.Scanln(&peerAddress)
 	go func() {
-		serverAddress := fmt.Sprintf("%s:8080", peerAddress)
+		serverAddress := fmt.Sprintf("%s", peerAddress)
 		err := server.StartServer(serverAddress)
 		if err != nil {
 			log.Fatalf("Failed to start server: %v\n", err)
@@ -131,7 +131,7 @@ func main() {
 				continue
 			}
 			peerAddress := args[1]
-			peerAddress = peerAddress + ":8080"
+			peerAddress = peerAddress
 			if err := client.TestConnection(peerAddress); err != nil {
 				fmt.Printf("Connection failed: %v\n", err)
 			} else {

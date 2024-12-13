@@ -129,7 +129,6 @@ func handleConnection(conn net.Conn) {
 }
 
 func main() {
-	//trackerAddress := "192.168.101.11:8080"
 	var trackerAddress string
 	fmt.Print("Enter your tracker address (e.g., 192.168.101.11): ")
 	fmt.Scanln(&trackerAddress)
