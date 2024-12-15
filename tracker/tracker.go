@@ -72,12 +72,12 @@ func handleConnection(conn net.Conn) {
 	fmt.Printf("Received data from peer: %s\n", data)
 
 	args := strings.Split(data, ":")
-	peerAddr := args[1]
+	peerAddr := (args[1] + ":" + args[2])
 
 	// Handle different commands
 	switch {
 	case strings.HasPrefix(data, "START:"):
-		fileName := args[2]
+		fileName := args[3]
 		err = AddPeer(peerAddr, fileName)
 		if err != nil {
 			fmt.Printf("Error adding peer: %v\n", err)
